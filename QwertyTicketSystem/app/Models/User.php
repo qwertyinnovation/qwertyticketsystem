@@ -103,6 +103,7 @@ class User extends Authenticatable
                 self::PERMISSION_VIEW_DASHBOARD,
                 self::PERMISSION_MANAGE_PROJECTS,
                 self::PERMISSION_MANAGE_TICKETS,
+                self::PERMISSION_MANAGE_SETTINGS,
                 self::PERMISSION_GENERATE_LINKS,
             ],
             self::ROLE_CLIENT => [
@@ -111,6 +112,7 @@ class User extends Authenticatable
             ],
             self::ROLE_INTERNAL, self::ROLE_VENDOR => [
                 self::PERMISSION_VIEW_DASHBOARD,
+                self::PERMISSION_MANAGE_TICKETS,
             ],
             default => [self::PERMISSION_VIEW_DASHBOARD],
         };

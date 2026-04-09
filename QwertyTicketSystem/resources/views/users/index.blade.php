@@ -1,5 +1,5 @@
 <x-layouts.app :title="'User Management | Qwerty Ticket System'">
-    <div class="app-shell app-shell-users">
+    <div class="app-shell app-shell-dashboard">
         @include('partials.service-desk-sidebar', ['activeMenu' => 'users', 'currentUser' => $currentUser])
 
         <section class="grid gap-4">
@@ -7,14 +7,45 @@
 
             <header class="panel rounded-2xl border p-4">
                 <h1 class="text-2xl font-extrabold tracking-tight">User Management</h1>
-                <p class="mt-1 text-sm text-slate-600">Table view for users. Click a row action to load details in the bottom editor panel.</p>
+                <p class="mt-1 text-sm text-slate-600">Users list with dedicated details and edit pages.</p>
             </header>
 
             <article class="panel rounded-2xl border bg-white p-4">
                 <div class="mb-3 flex items-center justify-between gap-2">
                     <h2 class="text-lg font-bold">Users Table</h2>
-                    <span class="badge rounded-full px-2 py-1 text-xs">Total: {{ $users->count() }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="badge rounded-full px-2 py-1 text-xs">Total: {{ $users->total() }}</span>
+                        <a href="{{ route('users.create') }}" class="btn btn-primary rounded-lg px-3 py-2 text-xs font-bold text-white">Create User</a>
+                    </div>
                 </div>
+
+                <form method="GET" action="{{ route('users.index') }}" class="mb-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
+                    <label class="grid gap-1 text-xs font-semibold md:col-span-2">
+                        Search
+                        <input
+                            type="text"
+                            name="search"
+                            value="{{ $filters['search'] ?? '' }}"
+                            placeholder="Search by name or email"
+                            class="rounded-lg px-3 py-2 text-sm"
+                        />
+                    </label>
+
+                    <label class="grid gap-1 text-xs font-semibold">
+                        Role
+                        <select name="role" class="rounded-lg px-3 py-2 text-sm">
+                            <option value="">All roles</option>
+                            @foreach ($roles as $roleKey => $roleName)
+                                <option value="{{ $roleKey }}" @selected(($filters['role'] ?? '') === $roleKey)>{{ $roleName }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <div class="flex items-end gap-2">
+                        <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Apply</button>
+                        <a href="{{ route('users.index') }}" class="btn rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700">Clear</a>
+                    </div>
+                </form>
 
                 <div class="overflow-x-auto rounded-xl border border-slate-200">
                     <table class="min-w-full border-collapse text-sm">
@@ -29,10 +60,7 @@
                         </thead>
                         <tbody>
                             @forelse ($users as $managedUser)
-                                @php
-                                    $isSelected = $selectedUser && $selectedUser->id === $managedUser->id;
-                                @endphp
-                                <tr class="border-t border-slate-100 {{ $isSelected ? 'bg-cyan-50/70' : 'bg-white' }}">
+                                <tr class="border-t border-slate-100 bg-white">
                                     <td class="px-3 py-2 font-semibold">{{ $managedUser->name }}</td>
                                     <td class="px-3 py-2 text-slate-600">{{ $managedUser->email }}</td>
                                     <td class="px-3 py-2">
@@ -42,12 +70,10 @@
                                         {{ $managedUser->role === \App\Models\User::ROLE_ADMIN ? 'All permissions' : count($managedUser->permissions ?? []) }}
                                     </td>
                                     <td class="px-3 py-2">
-                                        <a
-                                            href="{{ route('users.index', ['selected' => $managedUser->id]) }}"
-                                            class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700"
-                                        >
-                                            View Details
-                                        </a>
+                                        <div class="flex flex-wrap gap-2">
+                                            <a href="{{ route('users.show', $managedUser) }}" class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700">View Details</a>
+                                            <a href="{{ route('users.edit', $managedUser) }}" class="btn inline-flex rounded-lg border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">Edit</a>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -58,128 +84,11 @@
                         </tbody>
                     </table>
                 </div>
-            </article>
 
-            @if ($selectedUser)
-                <article class="panel rounded-2xl border bg-white p-4">
-                    <div class="mb-3 flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                            <h3 class="text-lg font-extrabold">Details: {{ $selectedUser->name }}</h3>
-                            <p class="text-sm text-slate-600">Bottom detail editor for the selected table row.</p>
-                        </div>
-                        <span class="badge rounded-full px-2 py-1 text-xs">ID #{{ $selectedUser->id }}</span>
-                    </div>
-
-                    <form method="POST" action="{{ route('users.update', $selectedUser) }}" class="grid gap-3">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold">
-                                Name
-                                <input type="text" name="name" value="{{ $selectedUser->name }}" class="rounded-lg px-3 py-2 text-sm" required />
-                            </label>
-
-                            <label class="grid gap-1 text-sm font-semibold">
-                                Email
-                                <input type="email" name="email" value="{{ $selectedUser->email }}" class="rounded-lg px-3 py-2 text-sm" required />
-                            </label>
-
-                            <label class="grid gap-1 text-sm font-semibold">
-                                New Password (optional)
-                                <input type="password" name="password" class="rounded-lg px-3 py-2 text-sm" />
-                            </label>
-
-                            <label class="grid gap-1 text-sm font-semibold">
-                                Role
-                                <select name="role" class="rounded-lg px-3 py-2 text-sm" required>
-                                    @foreach ($roles as $roleKey => $roleName)
-                                        <option value="{{ $roleKey }}" @selected($selectedUser->role === $roleKey)>{{ $roleName }}</option>
-                                    @endforeach
-                                </select>
-                            </label>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <p class="text-sm font-semibold">Permissions</p>
-                            @foreach ($permissions as $permissionKey => $permissionName)
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        name="permissions[]"
-                                        value="{{ $permissionKey }}"
-                                        class="rounded"
-                                        @checked(in_array($permissionKey, $selectedUser->permissions ?? [], true) || $selectedUser->role === \App\Models\User::ROLE_ADMIN)
-                                    />
-                                    {{ $permissionName }}
-                                </label>
-                            @endforeach
-                        </div>
-
-                        <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Save Changes</button>
-                    </form>
-
-                    <form method="POST" action="{{ route('users.destroy', $selectedUser) }}" class="mt-2">
-                        @csrf
-                        @method('DELETE')
-                        <button
-                            type="submit"
-                            class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
-                            onclick="return confirm('Delete {{ $selectedUser->name }}?');"
-                            @disabled((int) $selectedUser->id === (int) $currentUser->id)
-                        >
-                            Delete
-                        </button>
-                    </form>
-                </article>
-            @endif
-        </section>
-
-        <section class="panel user-create-panel rounded-2xl border p-4">
-            <h2 class="text-xl font-extrabold">Create User</h2>
-            <p class="mt-1 text-sm text-slate-600">Add users with role and explicit permission assignment.</p>
-
-            <form method="POST" action="{{ route('users.store') }}" class="mt-3 grid gap-3">
-                @csrf
-
-                <label class="grid gap-1 text-sm font-semibold">
-                    Name
-                    <input type="text" name="name" class="rounded-lg px-3 py-2 text-sm" required />
-                </label>
-
-                <label class="grid gap-1 text-sm font-semibold">
-                    Email
-                    <input type="email" name="email" class="rounded-lg px-3 py-2 text-sm" required />
-                </label>
-
-                <label class="grid gap-1 text-sm font-semibold">
-                    Password
-                    <input type="password" name="password" class="rounded-lg px-3 py-2 text-sm" required />
-                </label>
-
-                <label class="grid gap-1 text-sm font-semibold">
-                    Role
-                    <select name="role" class="rounded-lg px-3 py-2 text-sm" required>
-                        @foreach ($roles as $roleKey => $roleName)
-                            <option value="{{ $roleKey }}">{{ $roleName }}</option>
-                        @endforeach
-                    </select>
-                </label>
-
-                <div class="grid gap-2">
-                    <p class="text-sm font-semibold">Permissions</p>
-                    @foreach ($permissions as $permissionKey => $permissionName)
-                        <label class="flex items-center gap-2 text-sm">
-                            <input type="checkbox" name="permissions[]" value="{{ $permissionKey }}" class="rounded" />
-                            {{ $permissionName }}
-                        </label>
-                    @endforeach
+                <div class="mt-3">
+                    {{ $users->links() }}
                 </div>
-
-                <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Create User</button>
-            </form>
-
-            <a href="{{ route('dashboard') }}" class="mt-4 inline-block text-sm font-bold text-cyan-700">Back to Dashboard</a>
+            </article>
         </section>
     </div>
 </x-layouts.app>

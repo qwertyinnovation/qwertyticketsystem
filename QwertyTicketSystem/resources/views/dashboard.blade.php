@@ -19,8 +19,7 @@
 
             <section class="panel hero rounded-2xl border p-4">
                 <h3 class="text-xl font-extrabold">Ticket Operations Center</h3>
-                <p class="mt-1 text-sm text-slate-600">This is your first Laravel 12 + Tailwind page using your provided
-                    UI direction.</p>
+                <p class="mt-1 text-sm text-slate-600">Manage users, projects, and service ticket workflows from this dashboard.</p>
                 @if ($user->hasPermission(\App\Models\User::PERMISSION_MANAGE_USERS))
                     <a href="{{ route('users.index') }}"
                         class="btn btn-primary mt-3 inline-flex rounded-lg px-3 py-2 text-sm font-bold text-white">Configure

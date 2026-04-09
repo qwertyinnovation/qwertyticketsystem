@@ -12,13 +12,59 @@ class UserManagementController extends Controller
 {
     public function index(Request $request): View
     {
-        $users = User::query()->orderBy('name')->get();
-        $selectedUser = $users->firstWhere('id', (int) $request->integer('selected')) ?? $users->first();
+        $roles = User::roles();
+        $filters = [
+            'search' => trim((string) $request->query('search', '')),
+            'role' => (string) $request->query('role', ''),
+        ];
+
+        $usersQuery = User::query()->orderBy('name');
+
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+
+            $usersQuery->where(function ($query) use ($search): void {
+                $query->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('email', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($filters['role'] !== '' && array_key_exists($filters['role'], $roles)) {
+            $usersQuery->where('role', $filters['role']);
+        }
 
         return view('users.index', [
             'currentUser' => $request->user(),
-            'users' => $users,
-            'selectedUser' => $selectedUser,
+            'users' => $usersQuery->paginate(10)->withQueryString(),
+            'roles' => $roles,
+            'filters' => $filters,
+        ]);
+    }
+
+    public function create(Request $request): View
+    {
+        return view('users.create', [
+            'currentUser' => $request->user(),
+            'roles' => User::roles(),
+            'permissions' => User::availablePermissions(),
+        ]);
+    }
+
+    public function show(Request $request, User $user): View
+    {
+        return view('users.show', [
+            'currentUser' => $request->user(),
+            'managedUser' => $user,
+            'roles' => User::roles(),
+            'permissions' => User::availablePermissions(),
+        ]);
+    }
+
+    public function edit(Request $request, User $user): View
+    {
+        return view('users.edit', [
+            'currentUser' => $request->user(),
+            'managedUser' => $user,
             'roles' => User::roles(),
             'permissions' => User::availablePermissions(),
         ]);
@@ -45,7 +91,7 @@ class UserManagementController extends Controller
             'permissions' => $permissions,
         ]);
 
-        return back()->with('status', 'User created.');
+        return redirect()->route('users.index')->with('status', 'User created.');
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -70,7 +116,7 @@ class UserManagementController extends Controller
 
         $user->save();
 
-        return back()->with('status', 'User updated.');
+        return redirect()->route('users.show', $user)->with('status', 'User updated.');
     }
 
     public function destroy(User $user): RedirectResponse

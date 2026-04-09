@@ -24,9 +24,38 @@
             </a>
         @endif
 
-        <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Projects</button>
-        <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Service Tickets</button>
-        <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Settings</button>
+        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_PROJECTS))
+            <a
+                href="{{ route('projects.index') }}"
+                class="menu-item {{ ($activeMenu ?? '') === 'projects' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
+            >
+                Projects
+            </a>
+        @else
+            <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Projects</button>
+        @endif
+
+        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_TICKETS))
+            <a
+                href="{{ route('service-tickets.index') }}"
+                class="menu-item {{ ($activeMenu ?? '') === 'service-tickets' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
+            >
+                Service Tickets
+            </a>
+        @else
+            <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Service Tickets</button>
+        @endif
+
+        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_SETTINGS))
+            <a
+                href="{{ route('settings.index') }}"
+                class="menu-item {{ ($activeMenu ?? '') === 'settings' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
+            >
+                Settings
+            </a>
+        @else
+            <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Settings</button>
+        @endif
     </nav>
 
     <div class="mt-6 rounded-xl border border-white/20 bg-white/5 p-3 text-xs">

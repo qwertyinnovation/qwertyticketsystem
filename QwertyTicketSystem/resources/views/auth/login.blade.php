@@ -30,12 +30,18 @@
                             Work email
                             <input name="email" type="email" placeholder="name@company.com" value="{{ old('email') }}"
                                 required class="rounded-lg px-3 py-2.5 text-sm" />
+                            @error('email')
+                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                            @enderror
                         </label>
 
                         <label class="grid gap-1.5 text-sm font-semibold text-slate-700">
                             Password
                             <input name="password" type="password" placeholder="Enter your password" required
                                 class="rounded-lg px-3 py-2.5 text-sm" />
+                            @error('password')
+                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                            @enderror
                         </label>
 
                         <div class="flex flex-wrap items-center justify-between gap-3 pt-1">

@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'viber' => [
+        'group_link' => env('VIBER_GROUP_LINK'),
+    ],
+
 ];
