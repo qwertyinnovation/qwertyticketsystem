@@ -4,6 +4,11 @@
             fn (array $definition): bool => ! ($definition['builtin'] ?? false)
         );
         $customFieldValues = collect($serviceTicket->custom_fields ?? []);
+        $responseEntries = collect($serviceTicket->responses ?? []);
+        $legacyResponseAvailable = $responseEntries->isEmpty() && (
+            (is_string($serviceTicket->response_description) && trim($serviceTicket->response_description) !== '') ||
+            (is_string($serviceTicket->response_photo_path) && trim($serviceTicket->response_photo_path) !== '')
+        );
     @endphp
 
     <div class="app-shell app-shell-dashboard">
@@ -70,13 +75,26 @@
                 @endif
 
                 <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs font-bold uppercase text-slate-500">Photos</p>
+                    <p class="text-xs font-bold uppercase text-slate-500">Attachments</p>
                     @if ($serviceTicket->photos->isNotEmpty())
                         <div class="mt-2 grid grid-cols-2 gap-2 md:grid-cols-3">
                             @foreach ($serviceTicket->photos as $photo)
-                                <a href="{{ asset('storage/'.$photo->photo_path) }}" target="_blank" rel="noreferrer" class="block rounded-lg border border-slate-200 bg-white p-1">
-                                    <img src="{{ asset('storage/'.$photo->photo_path) }}" alt="Ticket photo" class="h-28 w-full rounded-md object-cover" />
-                                </a>
+                                @php
+                                    $attachmentPath = (string) $photo->photo_path;
+                                    $attachmentExt = strtolower(pathinfo($attachmentPath, PATHINFO_EXTENSION));
+                                    $isImageAttachment = in_array($attachmentExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
+                                @endphp
+                                <div class="rounded-lg border border-slate-200 bg-white p-1">
+                                    @if ($isImageAttachment)
+                                        <a href="{{ asset('storage/'.$attachmentPath) }}" target="_blank" rel="noreferrer" class="block">
+                                            <img src="{{ asset('storage/'.$attachmentPath) }}" alt="Ticket attachment image" class="h-28 w-full rounded-md object-cover" />
+                                        </a>
+                                    @else
+                                        <a href="{{ asset('storage/'.$attachmentPath) }}" target="_blank" rel="noreferrer" class="flex h-28 items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 text-center text-xs font-semibold text-cyan-700 underline">
+                                            Open Attachment
+                                        </a>
+                                    @endif
+                                </div>
                             @endforeach
                         </div>
                     @elseif ($serviceTicket->screenshot_path)
@@ -85,17 +103,69 @@
                         </a>
                         <img src="{{ asset('storage/'.$serviceTicket->screenshot_path) }}" alt="Ticket screenshot" class="mt-3 max-h-72 rounded-lg border border-slate-200 object-contain" />
                     @else
-                        <p class="mt-1 text-sm text-slate-700">No photos uploaded.</p>
+                        <p class="mt-1 text-sm text-slate-700">No attachments uploaded.</p>
                     @endif
                 </div>
 
                 <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs font-bold uppercase text-slate-500">Response</p>
-                    <p class="mt-1 text-sm text-slate-700 whitespace-pre-line">{{ $serviceTicket->response_description ?: 'No response yet.' }}</p>
-                    @if ($serviceTicket->response_photo_path)
-                        <a href="{{ asset('storage/'.$serviceTicket->response_photo_path) }}" target="_blank" rel="noreferrer" class="mt-2 inline-flex text-sm font-semibold text-cyan-700 underline">
-                            Open Response Photo
-                        </a>
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-bold uppercase text-slate-500">Response History</p>
+                        <span class="badge rounded-full px-2 py-1 text-xs">
+                            {{ $responseEntries->count() + ($legacyResponseAvailable ? 1 : 0) }}
+                        </span>
+                    </div>
+
+                    @if ($responseEntries->isEmpty() && ! $legacyResponseAvailable)
+                        <p class="mt-1 text-sm text-slate-700">No response yet.</p>
+                    @else
+                        <div class="mt-2 grid gap-2">
+                            @foreach ($responseEntries as $response)
+                                @php
+                                    $isCurrentUserResponse = (int) ($response->responded_by_user_id ?? 0) === (int) ($currentUser->id ?? 0);
+                                    $isImageAttachment = is_string($response->attachment_mime_type)
+                                        && str_starts_with($response->attachment_mime_type, 'image/');
+                                @endphp
+                                <article class="rounded-lg border p-3 {{ $isCurrentUserResponse ? 'border-cyan-200 bg-cyan-50 ml-6' : 'border-slate-200 bg-white mr-6' }}">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <p class="text-xs font-bold uppercase text-slate-500">
+                                            {{ $response->respondedBy?->name ?? 'Unknown Responder' }}
+                                        </p>
+                                        <span class="badge rounded-full px-2 py-1 text-xs">{{ $response->status }}</span>
+                                    </div>
+                                    <p class="mt-1 text-xs text-slate-500">{{ $response->created_at?->format('Y-m-d H:i') }}</p>
+                                    <p class="mt-2 text-sm text-slate-700 whitespace-pre-line">{{ $response->response_message ?: 'No message provided.' }}</p>
+
+                                    @if ($response->attachment_path)
+                                        @if ($isImageAttachment)
+                                            <a href="{{ asset('storage/'.$response->attachment_path) }}" target="_blank" rel="noreferrer" class="mt-2 inline-flex text-sm font-semibold text-cyan-700 underline">
+                                                Open Attachment
+                                            </a>
+                                            <img src="{{ asset('storage/'.$response->attachment_path) }}" alt="Response attachment image" class="mt-3 max-h-72 rounded-lg border border-slate-200 object-contain" />
+                                        @else
+                                            <a href="{{ asset('storage/'.$response->attachment_path) }}" target="_blank" rel="noreferrer" class="mt-2 inline-flex text-sm font-semibold text-cyan-700 underline">
+                                                {{ $response->attachment_original_name ?: 'Open Attachment' }}
+                                            </a>
+                                        @endif
+                                    @endif
+                                </article>
+                            @endforeach
+
+                            @if ($legacyResponseAvailable)
+                                <article class="rounded-lg border border-amber-200 bg-amber-50 p-3 mr-6">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <p class="text-xs font-bold uppercase text-amber-700">Legacy Response</p>
+                                        <span class="badge rounded-full px-2 py-1 text-xs">{{ $serviceTicket->status }}</span>
+                                    </div>
+                                    <p class="mt-1 text-xs text-amber-700">{{ $serviceTicket->updated_at?->format('Y-m-d H:i') }}</p>
+                                    <p class="mt-2 text-sm text-amber-900 whitespace-pre-line">{{ $serviceTicket->response_description ?: 'No message provided.' }}</p>
+                                    @if ($serviceTicket->response_photo_path)
+                                        <a href="{{ asset('storage/'.$serviceTicket->response_photo_path) }}" target="_blank" rel="noreferrer" class="mt-2 inline-flex text-sm font-semibold text-cyan-700 underline">
+                                            Open Attachment
+                                        </a>
+                                    @endif
+                                </article>
+                            @endif
+                        </div>
                     @endif
                 </div>
 
@@ -106,8 +176,8 @@
 
             @if ($canManageTicket)
                 <article class="panel rounded-2xl border bg-white p-4">
-                    <h2 class="text-lg font-bold">Update Response</h2>
-                    <p class="mt-1 text-sm text-slate-600">Admin/PM can update ticket status and response details.</p>
+                    <h2 class="text-lg font-bold">Add Response</h2>
+                    <p class="mt-1 text-sm text-slate-600">Responses are added as timeline entries. Allowed attachment types: PDF, Excel, Word, and images only.</p>
 
                     <form method="POST" action="{{ route('service-tickets.response.update', $serviceTicket) }}" enctype="multipart/form-data" class="mt-3 grid gap-3">
                         @csrf
@@ -126,22 +196,23 @@
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Response Description
-                            <textarea name="response_description" rows="4" class="rounded-lg px-3 py-2 text-sm">{{ old('response_description', $serviceTicket->response_description) }}</textarea>
-                            @error('response_description')
+                            Response Message
+                            <textarea name="response_message" rows="4" class="rounded-lg px-3 py-2 text-sm">{{ old('response_message') }}</textarea>
+                            @error('response_message')
                                 <span class="text-xs font-medium text-red-600">{{ $message }}</span>
                             @enderror
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Response Photo
-                            <input type="file" name="response_photo" class="rounded-lg px-3 py-2 text-sm" accept="image/*" />
-                            @error('response_photo')
+                            Attachment
+                            <input type="file" name="response_attachment" class="rounded-lg px-3 py-2 text-sm" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.bmp" />
+                            <span class="text-xs text-slate-500">Only PDF, Excel, Word, and photo files are allowed.</span>
+                            @error('response_attachment')
                                 <span class="text-xs font-medium text-red-600">{{ $message }}</span>
                             @enderror
                         </label>
 
-                        <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Save Response</button>
+                        <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Add Response</button>
                     </form>
                 </article>
             @endif

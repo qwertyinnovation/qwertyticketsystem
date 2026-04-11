@@ -7,6 +7,7 @@ use App\Models\ServiceDeskSetting;
 use App\Models\ServiceTicket;
 use App\Models\ServiceTicketPhoto;
 use App\Models\ServiceTicketPublicLink;
+use App\Models\ServiceTicketResponse;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,19 @@ class ServiceTicketController extends Controller
         $user = $request->user();
         $canManageAll = $this->canManageAllTickets($user);
         $canGeneratePublicLink = $user->hasPermission(User::PERMISSION_GENERATE_LINKS);
-        $projects = Project::query()->orderBy('name')->get(['id', 'name']);
+        $accessibleProjectIds = $canManageAll ? [] : $this->accessibleProjectIds($user);
+
+        $projectsQuery = Project::query()->orderBy('name');
+
+        if (! $canManageAll) {
+            if ($accessibleProjectIds === []) {
+                $projectsQuery->whereRaw('1 = 0');
+            } else {
+                $projectsQuery->whereIn('id', $accessibleProjectIds);
+            }
+        }
+
+        $projects = $projectsQuery->get(['id', 'name']);
         $projectIds = $projects->pluck('id')->map(static fn ($value): int => (int) $value)->all();
         $requesterRoles = ServiceTicket::requesterRoles();
         $statuses = ServiceTicket::statuses();
@@ -43,7 +56,11 @@ class ServiceTicketController extends Controller
             ->latest();
 
         if (! $canManageAll) {
-            $ticketsQuery->where('submitted_by_user_id', $user->id);
+            if ($accessibleProjectIds === []) {
+                $ticketsQuery->whereRaw('1 = 0');
+            } else {
+                $ticketsQuery->whereIn('project_id', $accessibleProjectIds);
+            }
         }
 
         if ($filters['search'] !== '') {
@@ -97,6 +114,8 @@ class ServiceTicketController extends Controller
         }
 
         $requesterRoles = ServiceTicket::requesterRoles();
+        $canManageAll = $this->canManageAllTickets($user);
+        $accessibleProjectIds = $canManageAll ? [] : $this->accessibleProjectIds($user);
 
         $activePublicLinks = ServiceTicketPublicLink::query()
             ->where('created_by_user_id', $user->id)
@@ -107,9 +126,19 @@ class ServiceTicketController extends Controller
             ->limit(10)
             ->get();
 
+        $projectsQuery = Project::query()->orderBy('name');
+
+        if (! $canManageAll) {
+            if ($accessibleProjectIds === []) {
+                $projectsQuery->whereRaw('1 = 0');
+            } else {
+                $projectsQuery->whereIn('id', $accessibleProjectIds);
+            }
+        }
+
         return view('service-tickets.public-links', [
             'currentUser' => $user,
-            'projects' => Project::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => $projectsQuery->get(['id', 'name']),
             'requesterRoles' => $requesterRoles,
             'activePublicLinks' => $activePublicLinks,
             'generatedPublicLink' => session('generated_public_link'),
@@ -122,6 +151,7 @@ class ServiceTicketController extends Controller
         /** @var User $user */
         $user = $request->user();
         $canSelectRequesterRole = $this->canManageAllTickets($user);
+        $accessibleProjectIds = $canSelectRequesterRole ? [] : $this->accessibleProjectIds($user);
         $requesterRoles = ServiceTicket::requesterRoles();
         $defaultRole = $this->defaultRequesterRole($user);
         $selectedRole = old('requester_role', $canSelectRequesterRole ? (string) $request->query('requester_role', $defaultRole) : $defaultRole);
@@ -130,9 +160,19 @@ class ServiceTicketController extends Controller
             $selectedRole = $defaultRole;
         }
 
+        $projectsQuery = Project::query()->orderBy('name');
+
+        if (! $canSelectRequesterRole) {
+            if ($accessibleProjectIds === []) {
+                $projectsQuery->whereRaw('1 = 0');
+            } else {
+                $projectsQuery->whereIn('id', $accessibleProjectIds);
+            }
+        }
+
         return view('service-tickets.create', [
             'currentUser' => $user,
-            'projects' => Project::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => $projectsQuery->get(['id', 'name']),
             'requesterRoles' => $requesterRoles,
             'selectedRequesterRole' => $selectedRole,
             'ticketSchemaByRole' => ServiceDeskSetting::ticketFormSchema(),
@@ -150,7 +190,7 @@ class ServiceTicketController extends Controller
         $user = $request->user();
         $this->assertCanViewTicket($user, $serviceTicket);
 
-        $serviceTicket->loadMissing(['project', 'submittedBy', 'photos']);
+        $serviceTicket->loadMissing(['project', 'submittedBy', 'photos', 'responses.respondedBy']);
 
         return view('service-tickets.show', [
             'currentUser' => $user,
@@ -158,7 +198,7 @@ class ServiceTicketController extends Controller
             'requesterRoles' => ServiceTicket::requesterRoles(),
             'statuses' => ServiceTicket::statuses(),
             'ticketFieldDefinitions' => ServiceDeskSetting::ticketFieldDefinitions(),
-            'canManageTicket' => $this->canManageAllTickets($user),
+            'canManageTicket' => $this->canManageTicketResponse($user, $serviceTicket),
             'canDeleteTicket' => $this->canManageAllTickets($user)
                 || (int) $serviceTicket->submitted_by_user_id === (int) $user->id,
         ]);
@@ -181,10 +221,15 @@ class ServiceTicketController extends Controller
 
         $schema = ServiceTicket::formSchemaForRole($requesterRole);
         $fieldDefinitions = ServiceDeskSetting::ticketFieldDefinitions();
+        $accessibleProjectIds = $canSelectRequesterRole ? [] : $this->accessibleProjectIds($user);
 
         $rules = [
             'project_id' => ['required', 'integer', Rule::exists('projects', 'id')],
         ];
+
+        if (! $canSelectRequesterRole) {
+            $rules['project_id'] = ['required', 'integer', Rule::in($accessibleProjectIds)];
+        }
 
         foreach ($this->ticketFieldRules($schema, $fieldDefinitions) as $key => $rule) {
             $rules[$key] = $rule;
@@ -224,8 +269,17 @@ class ServiceTicketController extends Controller
             abort(403);
         }
 
+        $canManageAll = $this->canManageAllTickets($user);
+        $accessibleProjectIds = $canManageAll ? [] : $this->accessibleProjectIds($user);
+
+        $projectRule = ['required', 'integer', Rule::exists('projects', 'id')];
+
+        if (! $canManageAll) {
+            $projectRule = ['required', 'integer', Rule::in($accessibleProjectIds)];
+        }
+
         $validated = $request->validate([
-            'project_id' => ['required', 'integer', Rule::exists('projects', 'id')],
+            'project_id' => $projectRule,
             'requester_role' => ['required', Rule::in(array_keys(ServiceTicket::requesterRoles()))],
         ]);
 
@@ -254,41 +308,69 @@ class ServiceTicketController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(ServiceTicket::statuses())],
-            'response_description' => ['nullable', 'string', 'max:10000'],
-            'response_photo' => ['nullable', 'image', 'max:5120'],
+            'response_message' => ['nullable', 'string', 'max:10000'],
+            'response_attachment' => [
+                'nullable',
+                'file',
+                'max:10240',
+                'mimetypes:'.implode(',', $this->allowedResponseAttachmentMimeTypes()),
+            ],
         ]);
 
-        $payload = [
-            'status' => $validated['status'],
-            'response_description' => $validated['response_description'] ?? null,
-        ];
+        $attachmentPath = null;
+        $attachmentOriginalName = null;
+        $attachmentMimeType = null;
+        $isImageAttachment = false;
 
-        if ($request->hasFile('response_photo')) {
-            if ($serviceTicket->response_photo_path) {
-                Storage::disk('public')->delete($serviceTicket->response_photo_path);
+        if ($request->hasFile('response_attachment')) {
+            $responseAttachment = $request->file('response_attachment');
+
+            if ($responseAttachment instanceof UploadedFile) {
+                $attachmentPath = $responseAttachment->store('ticket-responses', 'public');
+                $attachmentOriginalName = $responseAttachment->getClientOriginalName();
+                $attachmentMimeType = $responseAttachment->getClientMimeType();
+                $isImageAttachment = is_string($attachmentMimeType) && str_starts_with($attachmentMimeType, 'image/');
             }
-
-            $payload['response_photo_path'] = $request->file('response_photo')->store('ticket-responses', 'public');
         }
 
-        $serviceTicket->update($payload);
+        ServiceTicketResponse::query()->create([
+            'service_ticket_id' => $serviceTicket->id,
+            'responded_by_user_id' => $user->id,
+            'status' => $validated['status'],
+            'response_message' => $validated['response_message'] ?? null,
+            'attachment_path' => $attachmentPath,
+            'attachment_original_name' => $attachmentOriginalName,
+            'attachment_mime_type' => $attachmentMimeType,
+        ]);
 
-        return back()->with('status', 'Ticket response updated.');
+        $serviceTicket->status = $validated['status'];
+        $serviceTicket->response_description = $validated['response_message'] ?? null;
+        $serviceTicket->response_photo_path = $isImageAttachment ? $attachmentPath : null;
+        $serviceTicket->save();
+
+        return back()->with('status', 'Ticket response added.');
     }
 
     public function destroy(Request $request, ServiceTicket $serviceTicket): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
+        $this->assertCanViewTicket($user, $serviceTicket);
 
         if (! $this->canManageAllTickets($user) && (int) $serviceTicket->submitted_by_user_id !== (int) $user->id) {
             abort(403);
         }
 
-        $serviceTicket->loadMissing('photos');
+        $serviceTicket->loadMissing(['photos', 'responses']);
 
         $photoPaths = $serviceTicket->photos
             ->pluck('photo_path')
+            ->filter()
+            ->values()
+            ->all();
+
+        $responseAttachmentPaths = $serviceTicket->responses
+            ->pluck('attachment_path')
             ->filter()
             ->values()
             ->all();
@@ -299,6 +381,10 @@ class ServiceTicketController extends Controller
 
         if ($serviceTicket->response_photo_path) {
             $photoPaths[] = $serviceTicket->response_photo_path;
+        }
+
+        foreach ($responseAttachmentPaths as $attachmentPath) {
+            $photoPaths[] = $attachmentPath;
         }
 
         Storage::disk('public')->delete(array_values(array_unique($photoPaths)));
@@ -379,7 +465,11 @@ class ServiceTicketController extends Controller
 
         return [
             'photos' => $photoArrayRules,
-            'photos.*' => ['image', 'max:10240'],
+            'photos.*' => [
+                'file',
+                'max:10240',
+                'mimetypes:'.implode(',', $this->allowedTicketAttachmentMimeTypes()),
+            ],
         ];
     }
 
@@ -523,18 +613,16 @@ class ServiceTicketController extends Controller
             return;
         }
 
-        if ((int) $ticket->submitted_by_user_id !== (int) $user->id) {
+        if (! in_array((int) $ticket->project_id, $this->accessibleProjectIds($user), true)) {
             abort(403);
         }
     }
 
     private function assertCanManageTicket(User $user, ServiceTicket $ticket): void
     {
-        if (! $this->canManageAllTickets($user)) {
+        if (! $this->canManageTicketResponse($user, $ticket)) {
             abort(403);
         }
-
-        $this->assertCanViewTicket($user, $ticket);
     }
 
     private function canManageAllTickets(User $user): bool
@@ -554,5 +642,69 @@ class ServiceTicketController extends Controller
         }
 
         return User::ROLE_CLIENT;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function accessibleProjectIds(User $user): array
+    {
+        return $user->assignedProjectIds();
+    }
+
+    private function canManageTicketResponse(User $user, ServiceTicket $ticket): bool
+    {
+        if ($this->canManageAllTickets($user)) {
+            return true;
+        }
+
+        if (! $this->canRespondToAssignedProjectTickets($user)) {
+            return false;
+        }
+
+        return in_array((int) $ticket->project_id, $this->accessibleProjectIds($user), true);
+    }
+
+    private function canRespondToAssignedProjectTickets(User $user): bool
+    {
+        return in_array($user->role, [User::ROLE_INTERNAL, User::ROLE_VENDOR], true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedResponseAttachmentMimeTypes(): array
+    {
+        return [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/bmp',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedTicketAttachmentMimeTypes(): array
+    {
+        return [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/bmp',
+        ];
     }
 }

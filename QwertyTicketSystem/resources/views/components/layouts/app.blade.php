@@ -21,25 +21,23 @@
 
     @php
         $viberGroupLink = trim((string) config('services.viber.group_link', ''));
-        $showViberWidget = $viberGroupLink !== '' || app()->environment('local');
-        $resolvedViberGroupLink = $viberGroupLink !== '' ? $viberGroupLink : 'https://www.viber.com/';
+        // Show only when an explicit link is configured to avoid accidental UI overlay in local/dev.
+        $showViberWidget = $viberGroupLink !== '';
+        $resolvedViberGroupLink = $viberGroupLink;
     @endphp
 
     @if ($showViberWidget)
-        <div class="viber-widget" data-viber-widget>
-            <section class="viber-card" data-viber-card>
+        <div class="viber-widget" data-viber-widget style="pointer-events: none;">
+            <section class="viber-card" data-viber-card style="pointer-events: none;">
                 <button type="button" class="viber-card-close" data-viber-close aria-label="Close Viber card">×</button>
                 <p class="viber-card-title">Join our Viber Community!</p>
                 <p class="viber-card-text">Get help, updates, and support from our team.</p>
-                @if ($viberGroupLink === '')
-                    <p class="viber-card-hint">Set <code>VIBER_GROUP_LINK</code> in <code>.env</code> to use your group link.</p>
-                @endif
                 <a href="{{ $resolvedViberGroupLink }}" target="_blank" rel="noopener noreferrer" class="viber-card-link">
                     Join Viber Group →
                 </a>
             </section>
 
-            <button type="button" class="viber-fab" data-viber-trigger aria-label="Open Viber Group Card">
+            <button type="button" class="viber-fab" data-viber-trigger aria-label="Open Viber Group Card" style="pointer-events: auto;">
                 <span class="viber-fab-ring"></span>
                 <span class="viber-fab-core">
                     <i class="fa-brands fa-viber" aria-hidden="true"></i>
@@ -71,11 +69,13 @@
             const hideCard = () => {
                 clearAutoClose();
                 card.classList.remove('is-open');
+                card.style.pointerEvents = 'none';
             };
 
             const showCard = () => {
                 clearAutoClose();
                 card.classList.add('is-open');
+                card.style.pointerEvents = 'auto';
                 autoCloseTimer = window.setTimeout(hideCard, 5000);
             };
 

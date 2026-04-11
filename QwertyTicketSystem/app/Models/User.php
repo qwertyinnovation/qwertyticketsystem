@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -18,6 +19,11 @@ class User extends Authenticatable
     public const ROLE_CLIENT = 'client';
     public const ROLE_INTERNAL = 'internal';
     public const ROLE_VENDOR = 'vendor';
+    public const PROJECT_ASSIGNABLE_ROLES = [
+        self::ROLE_CLIENT,
+        self::ROLE_INTERNAL,
+        self::ROLE_VENDOR,
+    ];
 
     public const PERMISSION_VIEW_DASHBOARD = 'view_dashboard';
     public const PERMISSION_MANAGE_PROJECTS = 'manage_projects';
@@ -125,5 +131,35 @@ class User extends Authenticatable
         }
 
         return in_array($permission, $this->permissions ?? [], true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function projectAssignableRoles(): array
+    {
+        return self::PROJECT_ASSIGNABLE_ROLES;
+    }
+
+    public function isProjectAssignableRole(): bool
+    {
+        return in_array($this->role, self::projectAssignableRoles(), true);
+    }
+
+    public function assignedProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_user_assignments')
+            ->withTimestamps();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function assignedProjectIds(): array
+    {
+        return $this->assignedProjects()
+            ->pluck('projects.id')
+            ->map(static fn ($value): int => (int) $value)
+            ->all();
     }
 }

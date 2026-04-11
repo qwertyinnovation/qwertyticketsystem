@@ -76,6 +76,35 @@
                                 <span class="text-xs font-medium text-red-600">{{ $message }}</span>
                             @enderror
                         </label>
+
+                        <label class="grid gap-1 text-sm font-semibold md:col-span-2">
+                            Assigned Users (Internal / Third-Party / Client)
+                            @php
+                                $selectedAssigneeIds = collect(old('assignee_user_ids', []))
+                                    ->map(static fn ($value): int => (int) $value)
+                                    ->all();
+                            @endphp
+                            <select name="assignee_user_ids[]" class="rounded-lg px-3 py-2 text-sm" multiple size="10">
+                                @foreach ($assignableUsersByRole as $role => $users)
+                                    @if ($users !== [])
+                                        <optgroup label="{{ $assignableRoleLabels[$role] ?? ucfirst($role) }}">
+                                            @foreach ($users as $user)
+                                                <option value="{{ $user->id }}" @selected(in_array((int) $user->id, $selectedAssigneeIds, true))>
+                                                    {{ $user->name }} ({{ $user->email }})
+                                                </option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
+                                @endforeach
+                            </select>
+                            <span class="text-xs text-slate-500">Selected users can only access tickets from this project.</span>
+                            @error('assignee_user_ids')
+                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                            @enderror
+                            @error('assignee_user_ids.*')
+                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                            @enderror
+                        </label>
                     </div>
 
                     <div class="flex flex-wrap gap-2">

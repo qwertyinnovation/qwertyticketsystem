@@ -183,7 +183,11 @@ class ServiceTicketPublicController extends Controller
 
         return [
             'photos' => $photoArrayRules,
-            'photos.*' => ['image', 'max:10240'],
+            'photos.*' => [
+                'file',
+                'max:10240',
+                'mimetypes:'.implode(',', $this->allowedTicketAttachmentMimeTypes()),
+            ],
         ];
     }
 
@@ -319,5 +323,24 @@ class ServiceTicketPublicController extends Controller
             $ticket->screenshot_path = $firstStoredPath;
             $ticket->save();
         }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedTicketAttachmentMimeTypes(): array
+    {
+        return [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/bmp',
+        ];
     }
 }

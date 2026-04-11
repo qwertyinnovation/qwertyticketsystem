@@ -38,6 +38,13 @@ class ServiceTicket extends Model
         return $this->hasMany(ServiceTicketPhoto::class);
     }
 
+    public function responses(): HasMany
+    {
+        return $this->hasMany(ServiceTicketResponse::class)
+            ->orderBy('created_at')
+            ->orderBy('id');
+    }
+
     /**
      * @return array<string, string>
      */

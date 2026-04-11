@@ -78,10 +78,11 @@
                     id="ticketPhotosInput"
                     data-ticket-input="{{ $fieldKey }}"
                     class="rounded-lg px-3 py-2 text-sm"
-                    accept="image/*"
+                    accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.bmp"
                     multiple
                     @required($isRequired)
                 />
+                <span class="text-xs text-slate-500">Allowed files: PDF, Excel, Word, and photo files only.</span>
                 @error('photos')
                     <span class="text-xs font-medium text-red-600">{{ $message }}</span>
                 @enderror
@@ -176,19 +177,27 @@
                 const wrapper = document.createElement('div');
                 wrapper.className = 'rounded-lg border border-slate-200 bg-slate-50 p-1';
 
-                const image = document.createElement('img');
-                image.className = 'h-24 w-full rounded-md object-cover';
-                image.alt = file.name;
-
-                const objectUrl = URL.createObjectURL(file);
-                image.src = objectUrl;
-                image.onload = () => URL.revokeObjectURL(objectUrl);
-
                 const caption = document.createElement('p');
                 caption.className = 'mt-1 truncate text-[11px] text-slate-600';
                 caption.textContent = file.name;
 
-                wrapper.appendChild(image);
+                if (file.type.startsWith('image/')) {
+                    const image = document.createElement('img');
+                    image.className = 'h-24 w-full rounded-md object-cover';
+                    image.alt = file.name;
+
+                    const objectUrl = URL.createObjectURL(file);
+                    image.src = objectUrl;
+                    image.onload = () => URL.revokeObjectURL(objectUrl);
+
+                    wrapper.appendChild(image);
+                } else {
+                    const badge = document.createElement('div');
+                    badge.className = 'flex h-24 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-600';
+                    badge.textContent = 'Document';
+                    wrapper.appendChild(badge);
+                }
+
                 wrapper.appendChild(caption);
                 previewContainer.appendChild(wrapper);
             });
