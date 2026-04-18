@@ -15,6 +15,10 @@ class DashboardController extends Controller
         /** @var User $user */
         $user = auth()->user();
         $canManageAllTickets = $this->canManageAllTickets($user);
+        $canViewTicketInsights = $user->hasPermission(User::PERMISSION_MANAGE_TICKETS);
+        $canViewProjectInsights = $user->hasPermission(User::PERMISSION_MANAGE_PROJECTS);
+        $canViewUserInsights = $user->hasPermission(User::PERMISSION_MANAGE_USERS);
+        $canViewSettingsInsights = $user->hasPermission(User::PERMISSION_MANAGE_SETTINGS);
         $canGeneratePublicLink = $user->hasPermission(User::PERMISSION_GENERATE_LINKS);
         $accessibleProjectIds = $canManageAllTickets ? [] : $user->assignedProjectIds();
 
@@ -94,9 +98,128 @@ class DashboardController extends Controller
                 ->count();
         }
 
+        $roleLabel = User::roles()[$user->role] ?? ucfirst($user->role);
+
+        $dashboardSummary = $canManageAllTickets
+            ? 'Live overview across all projects, users, and service ticket workflows.'
+            : 'Live overview limited to your assigned projects and permitted operations.';
+
+        $todayScopeSummary = $canManageAllTickets
+            ? 'Viewing all ticket activity'
+            : 'Viewing assigned project ticket activity';
+
+        $metricCards = [];
+
+        if ($canViewTicketInsights) {
+            $metricCards[] = [
+                'label' => 'Total Tickets',
+                'value' => $totalTickets,
+                'description' => 'All tickets in your current view scope.',
+            ];
+            $metricCards[] = [
+                'label' => 'Open Tickets',
+                'value' => $openTickets,
+                'description' => 'New, in progress, waiting, or active states.',
+            ];
+            $metricCards[] = [
+                'label' => 'Closed Tickets',
+                'value' => $closedTickets,
+                'description' => 'Resolved, completed, or closed outcomes.',
+            ];
+        }
+
+        if ($canViewProjectInsights || $canViewSettingsInsights) {
+            $metricCards[] = [
+                'label' => 'Active Projects',
+                'value' => $activeProjectStatuses === []
+                    ? (clone $projectScopeQuery)->count()
+                    : (clone $projectScopeQuery)->whereIn('status', $activeProjectStatuses)->count(),
+                'description' => 'Open projects currently being delivered.',
+            ];
+            $metricCards[] = [
+                'label' => 'Total Projects',
+                'value' => (clone $projectScopeQuery)->count(),
+                'description' => $canManageAllTickets
+                    ? 'Projects tracked in the workspace.'
+                    : 'Projects you can currently access.',
+            ];
+        } elseif (! $canManageAllTickets) {
+            $metricCards[] = [
+                'label' => 'Assigned Projects',
+                'value' => count($accessibleProjectIds),
+                'description' => 'Projects currently available in your dashboard scope.',
+            ];
+        }
+
+        if ($canViewUserInsights) {
+            $metricCards[] = [
+                'label' => 'Total Users',
+                'value' => User::count(),
+                'description' => 'System users across all requester roles.',
+            ];
+        } elseif ($canGeneratePublicLink) {
+            $metricCards[] = [
+                'label' => 'Active Public Links',
+                'value' => $activePublicLinksCount,
+                'description' => 'One-time links not used and not expired.',
+            ];
+        }
+
+        $quickActions = [];
+
+        if ($canViewTicketInsights) {
+            $quickActions[] = [
+                'label' => 'Submit New Ticket',
+                'href' => route('service-tickets.create'),
+                'variant' => 'primary',
+            ];
+            $quickActions[] = [
+                'label' => 'Open Ticket List',
+                'href' => route('service-tickets.index'),
+                'variant' => 'secondary',
+            ];
+        }
+
+        if ($canViewProjectInsights) {
+            $quickActions[] = [
+                'label' => 'Create Project',
+                'href' => route('projects.create'),
+                'variant' => 'secondary',
+            ];
+        }
+
+        if ($canViewUserInsights) {
+            $quickActions[] = [
+                'label' => 'Create User',
+                'href' => route('users.create'),
+                'variant' => 'secondary',
+            ];
+        }
+
+        if ($canGeneratePublicLink) {
+            $quickActions[] = [
+                'label' => 'One-Time Public Form',
+                'href' => route('service-tickets.public-links.index'),
+                'variant' => 'accent',
+            ];
+        }
+
+        if ($canViewSettingsInsights) {
+            $quickActions[] = [
+                'label' => 'Settings',
+                'href' => route('settings.index'),
+                'variant' => 'secondary',
+            ];
+        }
+
         return view('dashboard', [
             'user' => $user,
             'permissions' => User::availablePermissions(),
+            'roleLabel' => $roleLabel,
+            'dashboardSummary' => $dashboardSummary,
+            'todayScopeSummary' => $todayScopeSummary,
+            'metricCards' => $metricCards,
+            'quickActions' => $quickActions,
             'totalUsers' => User::count(),
             'adminUsers' => User::where('role', User::ROLE_ADMIN)->count(),
             'pmUsers' => User::where('role', User::ROLE_PM)->count(),
@@ -116,6 +239,10 @@ class DashboardController extends Controller
             'activePublicLinksCount' => $activePublicLinksCount,
             'requesterRoles' => ServiceTicket::requesterRoles(),
             'canManageAllTickets' => $canManageAllTickets,
+            'canViewTicketInsights' => $canViewTicketInsights,
+            'canViewProjectInsights' => $canViewProjectInsights,
+            'canViewUserInsights' => $canViewUserInsights,
+            'canViewSettingsInsights' => $canViewSettingsInsights,
             'canGeneratePublicLink' => $canGeneratePublicLink,
         ]);
     }

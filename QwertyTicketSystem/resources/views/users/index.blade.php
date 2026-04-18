@@ -11,11 +11,11 @@
             </header>
 
             <article class="panel rounded-2xl border bg-white p-4">
-                <div class="mb-3 flex items-center justify-between gap-2">
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 class="text-lg font-bold">Users Table</h2>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2 sm:justify-end">
                         <span class="badge rounded-full px-2 py-1 text-xs">Total: {{ $users->total() }}</span>
-                        <a href="{{ route('users.create') }}" class="btn btn-primary rounded-lg px-3 py-2 text-xs font-bold text-white">Create User</a>
+                        <a href="{{ route('users.create') }}" class="btn btn-primary rounded-lg px-3 py-2 text-center text-xs font-bold text-white sm:w-auto">Create User</a>
                     </div>
                 </div>
 

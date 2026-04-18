@@ -28,7 +28,7 @@
             </header>
 
             <article class="panel rounded-2xl border bg-white p-4">
-                <div class="mb-3 flex items-center justify-between gap-2">
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 class="text-lg font-bold">Ticket List</h2>
                     <span class="badge rounded-full px-2 py-1 text-xs">Total: {{ $tickets->total() }}</span>
                 </div>
@@ -78,7 +78,7 @@
                             </select>
                         </label>
 
-                        <div class="flex items-end gap-2 md:col-span-4 md:justify-end">
+                        <div class="flex flex-wrap items-end gap-2 md:col-span-4 md:justify-end">
                             <button type="submit"
                                 class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Apply</button>
                             <a href="{{ route('service-tickets.index') }}"

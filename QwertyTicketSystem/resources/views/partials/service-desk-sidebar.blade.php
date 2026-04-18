@@ -1,75 +1,169 @@
-<aside class="sidebar panel rounded-2xl border p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
-    <div class="flex items-center gap-3">
-        <div class="h-4 w-4 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
-        <div>
-            <h1 class="text-lg font-bold">Service Desk</h1>
-            <p class="text-xs text-slate-300">service.qwertyinnovation.com</p>
+@php
+    $resolvedCurrentUser = $currentUser ?? auth()->user();
+    $resolvedActiveMenu = $activeMenu ?? 'dashboard';
+
+    $menuItems = [
+        [
+            'key' => 'dashboard',
+            'label' => 'Dashboard',
+            'href' => route('dashboard'),
+            'enabled' => true,
+        ],
+        [
+            'key' => 'users',
+            'label' => 'User Management',
+            'href' => route('users.index'),
+            'enabled' => $resolvedCurrentUser?->hasPermission(\App\Models\User::PERMISSION_MANAGE_USERS) ?? false,
+        ],
+        [
+            'key' => 'projects',
+            'label' => 'Projects',
+            'href' => route('projects.index'),
+            'enabled' => $resolvedCurrentUser?->hasPermission(\App\Models\User::PERMISSION_MANAGE_PROJECTS) ?? false,
+        ],
+        [
+            'key' => 'service-tickets',
+            'label' => 'Service Tickets',
+            'href' => route('service-tickets.index'),
+            'enabled' => $resolvedCurrentUser?->hasPermission(\App\Models\User::PERMISSION_MANAGE_TICKETS) ?? false,
+        ],
+        [
+            'key' => 'settings',
+            'label' => 'Settings',
+            'href' => route('settings.index'),
+            'enabled' => $resolvedCurrentUser?->hasPermission(\App\Models\User::PERMISSION_MANAGE_SETTINGS) ?? false,
+        ],
+    ];
+
+    $resolvedActiveMenuLabel = collect($menuItems)->firstWhere('key', $resolvedActiveMenu)['label'] ?? 'Menu';
+@endphp
+
+<div class="service-desk-navigation" data-service-desk-nav>
+    <div class="mobile-service-desk-nav panel lg:hidden">
+        <div class="mobile-service-desk-nav-bar">
+            <div class="flex min-w-0 items-center gap-3">
+                <div class="h-4 w-4 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
+                <div class="min-w-0">
+                    <p class="truncate text-base font-extrabold text-slate-900">Service Desk</p>
+                    <p class="truncate text-xs text-slate-500">service.qwertyinnovation.com</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="mobile-service-desk-pill">{{ $resolvedActiveMenuLabel }}</span>
+                <button
+                    type="button"
+                    class="mobile-service-desk-toggle"
+                    data-service-desk-toggle
+                    aria-expanded="false"
+                    aria-controls="mobileServiceDeskDrawer"
+                    aria-label="Open service desk navigation"
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
         </div>
     </div>
 
-    <nav class="mt-4 grid gap-2">
-        <a
-            href="{{ route('dashboard') }}"
-            class="menu-item {{ ($activeMenu ?? 'dashboard') === 'dashboard' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
-        >
-            Dashboard
-        </a>
+    <div class="mobile-service-desk-backdrop lg:hidden" data-service-desk-overlay></div>
 
-        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_USERS))
-            <a
-                href="{{ route('users.index') }}"
-                class="menu-item {{ ($activeMenu ?? '') === 'users' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
-            >
-                User Management
-            </a>
-        @endif
+    <aside
+        id="mobileServiceDeskDrawer"
+        class="mobile-service-desk-drawer sidebar panel lg:hidden"
+        data-service-desk-drawer
+        aria-hidden="true"
+    >
+        <div class="flex items-start justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+                <div class="h-4 w-4 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
+                <div class="min-w-0">
+                    <h1 class="truncate text-lg font-bold">Service Desk</h1>
+                    <p class="truncate text-xs text-slate-300">service.qwertyinnovation.com</p>
+                </div>
+            </div>
 
-        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_PROJECTS))
-            <a
-                href="{{ route('projects.index') }}"
-                class="menu-item {{ ($activeMenu ?? '') === 'projects' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
-            >
-                Projects
-            </a>
-        @else
-            <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Projects</button>
-        @endif
+            <button type="button" class="mobile-service-desk-close" data-service-desk-close aria-label="Close service desk navigation">
+                <span></span>
+                <span></span>
+            </button>
+        </div>
 
-        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_TICKETS))
-            <a
-                href="{{ route('service-tickets.index') }}"
-                class="menu-item {{ ($activeMenu ?? '') === 'service-tickets' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
-            >
-                Service Tickets
-            </a>
-        @else
-            <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Service Tickets</button>
-        @endif
+        <div class="mt-5 rounded-xl border border-white/15 bg-white/5 p-3 text-xs">
+            <p class="font-bold">Logged in as</p>
+            <p class="mt-1 text-sm font-semibold">{{ $resolvedCurrentUser?->name }}</p>
+            <p class="mt-1">
+                Role:
+                {{ \App\Models\User::roles()[$resolvedCurrentUser?->role] ?? ucfirst($resolvedCurrentUser?->role ?? '') }}
+            </p>
+        </div>
 
-        @if (($currentUser ?? auth()->user())?->hasPermission(\App\Models\User::PERMISSION_MANAGE_SETTINGS))
-            <a
-                href="{{ route('settings.index') }}"
-                class="menu-item {{ ($activeMenu ?? '') === 'settings' ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
-            >
-                Settings
-            </a>
-        @else
-            <button type="button" class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold">Settings</button>
-        @endif
-    </nav>
+        <nav class="mt-5 grid gap-2">
+            @foreach ($menuItems as $item)
+                @if ($item['enabled'])
+                    <a
+                        href="{{ $item['href'] }}"
+                        data-service-desk-link
+                        class="menu-item {{ $resolvedActiveMenu === $item['key'] ? 'active' : '' }} rounded-lg px-3 py-2.5 text-left text-sm font-bold"
+                    >
+                        {{ $item['label'] }}
+                    </a>
+                @else
+                    <button type="button" disabled class="menu-item rounded-lg px-3 py-2.5 text-left text-sm font-bold opacity-70">
+                        {{ $item['label'] }}
+                    </button>
+                @endif
+            @endforeach
+        </nav>
 
-    <div class="mt-6 rounded-xl border border-white/20 bg-white/5 p-3 text-xs">
-        <p class="font-bold">Logged in as</p>
-        <p>{{ ($currentUser ?? auth()->user())?->name }}</p>
-        <p class="mt-1">
-            Role: {{ \App\Models\User::roles()[($currentUser ?? auth()->user())?->role] ?? ucfirst(($currentUser ?? auth()->user())?->role ?? '') }}
-        </p>
-    </div>
+        <form method="POST" action="{{ route('logout') }}" class="mt-5">
+            @csrf
+            <button type="submit" class="btn w-full rounded-lg border border-white/30 bg-white/10 px-3 py-2.5 text-sm font-bold text-white">
+                Logout
+            </button>
+        </form>
+    </aside>
 
-    <form method="POST" action="{{ route('logout') }}" class="mt-4">
-        @csrf
-        <button type="submit" class="btn w-full rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white">
-            Logout
-        </button>
-    </form>
-</aside>
+    <aside class="sidebar panel hidden rounded-2xl border p-4 lg:sticky lg:top-4 lg:block lg:h-[calc(100vh-2rem)]">
+        <div class="flex items-center gap-3">
+            <div class="h-4 w-4 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
+            <div>
+                <h1 class="text-lg font-bold">Service Desk</h1>
+                <p class="text-xs text-slate-300">service.qwertyinnovation.com</p>
+            </div>
+        </div>
+
+        <nav class="mt-4 grid gap-2">
+            @foreach ($menuItems as $item)
+                @if ($item['enabled'])
+                    <a
+                        href="{{ $item['href'] }}"
+                        class="menu-item {{ $resolvedActiveMenu === $item['key'] ? 'active' : '' }} rounded-lg px-3 py-2 text-left text-sm font-bold"
+                    >
+                        {{ $item['label'] }}
+                    </a>
+                @else
+                    <button type="button" disabled class="menu-item rounded-lg px-3 py-2 text-left text-sm font-bold opacity-70">
+                        {{ $item['label'] }}
+                    </button>
+                @endif
+            @endforeach
+        </nav>
+
+        <div class="mt-6 rounded-xl border border-white/20 bg-white/5 p-3 text-xs">
+            <p class="font-bold">Logged in as</p>
+            <p>{{ $resolvedCurrentUser?->name }}</p>
+            <p class="mt-1">
+                Role: {{ \App\Models\User::roles()[$resolvedCurrentUser?->role] ?? ucfirst($resolvedCurrentUser?->role ?? '') }}
+            </p>
+        </div>
+
+        <form method="POST" action="{{ route('logout') }}" class="mt-4">
+            @csrf
+            <button type="submit" class="btn w-full rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white">
+                Logout
+            </button>
+        </form>
+    </aside>
+</div>

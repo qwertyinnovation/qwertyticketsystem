@@ -61,7 +61,7 @@
             @if ($generatedPublicLink)
                 <article class="panel rounded-2xl border bg-white p-4">
                     <p class="text-xs font-bold uppercase text-cyan-800">Generated Link</p>
-                    <div class="mt-2 flex gap-2">
+                    <div class="mt-2 flex flex-col gap-2 sm:flex-row">
                         <input
                             id="generatedPublicLinkInput"
                             type="text"
@@ -69,7 +69,7 @@
                             value="{{ $generatedPublicLink }}"
                             class="w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs text-cyan-900"
                         />
-                        <button type="button" id="copyPublicLinkBtn" class="btn rounded-lg border border-cyan-300 bg-cyan-100 px-3 py-2 text-xs font-bold text-cyan-800">
+                        <button type="button" id="copyPublicLinkBtn" class="btn rounded-lg border border-cyan-300 bg-cyan-100 px-3 py-2 text-xs font-bold text-cyan-800 sm:w-auto">
                             Copy
                         </button>
                     </div>

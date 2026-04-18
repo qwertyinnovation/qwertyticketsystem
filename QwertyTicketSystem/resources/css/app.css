@@ -165,6 +165,14 @@ textarea:focus {
     padding: 0.75rem;
 }
 
+.app-shell > main,
+.app-shell > section,
+.app-shell .panel,
+.app-shell .overflow-x-auto {
+    min-width: 0;
+    max-width: 100%;
+}
+
 .app-shell-dashboard {
     max-width: 1600px;
     grid-template-columns: 280px minmax(0, 1fr);
@@ -177,6 +185,149 @@ textarea:focus {
 
 .user-create-panel {
     height: fit-content;
+}
+
+.service-desk-navigation {
+    position: relative;
+}
+
+.mobile-service-desk-nav {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 45;
+    padding: 0.8rem 0.9rem;
+}
+
+.mobile-service-desk-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.mobile-service-desk-pill {
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid rgba(14, 116, 144, 0.16);
+    border-radius: 999px;
+    background: rgba(236, 254, 255, 0.95);
+    padding: 0.42rem 0.75rem;
+    color: #0f3e63;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.mobile-service-desk-toggle,
+.mobile-service-desk-close {
+    position: relative;
+    border: 0;
+    border-radius: 16px;
+    cursor: pointer;
+}
+
+.mobile-service-desk-toggle {
+    width: 3rem;
+    height: 3rem;
+    background: linear-gradient(135deg, rgba(14, 116, 144, 0.94), rgba(29, 78, 216, 0.9));
+    box-shadow: 0 12px 24px rgba(14, 116, 144, 0.24);
+}
+
+.mobile-service-desk-toggle span,
+.mobile-service-desk-close span {
+    position: absolute;
+    left: 50%;
+    width: 1.15rem;
+    height: 2px;
+    border-radius: 999px;
+    background: #fff;
+    transform: translateX(-50%);
+    transition: transform 180ms ease, opacity 180ms ease, top 180ms ease;
+}
+
+.mobile-service-desk-toggle span:nth-child(1) {
+    top: 0.95rem;
+}
+
+.mobile-service-desk-toggle span:nth-child(2) {
+    top: 1.45rem;
+}
+
+.mobile-service-desk-toggle span:nth-child(3) {
+    top: 1.95rem;
+}
+
+.service-desk-navigation.is-open .mobile-service-desk-toggle span:nth-child(1) {
+    top: 1.45rem;
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.service-desk-navigation.is-open .mobile-service-desk-toggle span:nth-child(2) {
+    opacity: 0;
+}
+
+.service-desk-navigation.is-open .mobile-service-desk-toggle span:nth-child(3) {
+    top: 1.45rem;
+    transform: translateX(-50%) rotate(-45deg);
+}
+
+.mobile-service-desk-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(15, 23, 42, 0.48);
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+}
+
+.mobile-service-desk-drawer {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    z-index: 50;
+    width: min(320px, calc(100vw - 1.5rem));
+    padding: 1rem;
+    overflow-y: auto;
+    box-shadow: 0 26px 60px rgba(15, 23, 42, 0.34);
+    transform: translateX(calc(-100% - 1rem));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.mobile-service-desk-close {
+    width: 2.8rem;
+    height: 2.8rem;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.mobile-service-desk-close span:nth-child(1) {
+    top: 1.35rem;
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.mobile-service-desk-close span:nth-child(2) {
+    top: 1.35rem;
+    transform: translateX(-50%) rotate(-45deg);
+}
+
+.service-desk-navigation.is-open .mobile-service-desk-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.service-desk-navigation.is-open .mobile-service-desk-drawer {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .viber-widget {
@@ -307,38 +458,40 @@ textarea:focus {
 }
 
 @media (max-width: 1024px) {
+    body.service-desk-nav-open {
+        overflow: hidden;
+    }
+
     .app-shell {
         display: block;
         padding: 0.75rem;
+        overflow-x: clip;
+    }
+
+    .service-desk-navigation + main,
+    .service-desk-navigation + section {
+        margin-top: 1rem;
     }
 }
 
 @media (max-width: 640px) {
     .viber-widget {
-        right: 0.85rem;
-        bottom: 0.85rem;
+        display: none;
     }
 
-    .viber-card {
-        width: min(300px, calc(100vw - 1.5rem));
-        padding: 0.85rem 2.1rem 0.85rem 0.85rem;
+    .mobile-service-desk-nav {
+        padding: 0.75rem;
     }
 
-    .viber-card-title {
-        font-size: 1.1rem;
+    .mobile-service-desk-pill {
+        display: none;
     }
 
-    .viber-card-text {
-        font-size: 0.9rem;
-    }
-
-    .viber-fab {
-        width: 66px;
-        height: 66px;
-    }
-
-    .viber-fab-core {
-        width: 52px;
-        height: 52px;
+    .mobile-service-desk-drawer {
+        top: 0.5rem;
+        left: 0.5rem;
+        bottom: 0.5rem;
+        width: min(300px, calc(100vw - 1rem));
+        padding: 0.9rem;
     }
 }

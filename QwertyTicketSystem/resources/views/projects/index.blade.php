@@ -11,11 +11,11 @@
             </header>
 
             <article class="panel rounded-2xl border bg-white p-4">
-                <div class="mb-3 flex items-center justify-between gap-2">
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 class="text-lg font-bold">Project List</h2>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2 sm:justify-end">
                         <span class="badge rounded-full px-2 py-1 text-xs">Total: {{ $projects->total() }}</span>
-                        <a href="{{ route('projects.create') }}" class="btn btn-primary rounded-lg px-3 py-2 text-xs font-bold text-white">Create Project</a>
+                        <a href="{{ route('projects.create') }}" class="btn btn-primary rounded-lg px-3 py-2 text-center text-xs font-bold text-white sm:w-auto">Create Project</a>
                     </div>
                 </div>
 
@@ -71,7 +71,7 @@
                         </select>
                     </label>
 
-                    <div class="md:col-span-6 flex items-end gap-2">
+                    <div class="flex flex-wrap items-end gap-2 md:col-span-6">
                         <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Apply</button>
                         <a href="{{ route('projects.index') }}" class="btn rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700">Clear</a>
                     </div>
