@@ -13,6 +13,27 @@ use Illuminate\View\View;
 
 class ServiceTicketPublicController extends Controller
 {
+    public function show(string $token): View|\Illuminate\Http\Response
+    {
+        $serviceTicket = ServiceTicket::query()
+            ->where('public_tracking_token', $token)
+            ->with(['project', 'submittedBy', 'photos', 'responses.respondedBy'])
+            ->first();
+
+        if (! $serviceTicket instanceof ServiceTicket) {
+            return response()->view('service-tickets.public-invalid', [
+                'message' => 'This public tracking link is not available.',
+                'helpText' => 'Please request the latest tracking link from the service desk team.',
+            ], 404);
+        }
+
+        return view('service-tickets.public-show', [
+            'serviceTicket' => $serviceTicket,
+            'requesterRoles' => ServiceTicket::requesterRoles(),
+            'ticketFieldDefinitions' => ServiceDeskSetting::ticketFieldDefinitions(),
+        ]);
+    }
+
     public function create(ServiceTicketPublicLink $publicLink): View|\Illuminate\Http\Response
     {
         if (! $publicLink->isActive()) {
@@ -70,6 +91,7 @@ class ServiceTicketPublicController extends Controller
                 'description' => $this->resolveStringFieldValue($schema, $validated, 'description'),
                 'custom_fields' => $customFieldValues !== [] ? $customFieldValues : null,
                 'status' => ServiceTicket::statuses()[0],
+                'public_tracking_token' => ServiceTicket::uniquePublicTrackingToken(),
             ]);
 
             if (($schema['photo']['enabled'] ?? false)) {
@@ -98,6 +120,7 @@ class ServiceTicketPublicController extends Controller
         return view('service-tickets.public-success', [
             'ticket' => $ticket,
             'requesterRoleLabel' => ServiceTicket::requesterRoles()[$ticket->requester_role] ?? ucfirst($ticket->requester_role),
+            'trackingLink' => route('service-tickets.public.track', $ticket->public_tracking_token),
         ]);
     }
 

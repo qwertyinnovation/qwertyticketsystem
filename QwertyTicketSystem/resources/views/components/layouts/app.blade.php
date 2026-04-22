@@ -20,27 +20,57 @@
     {{ $slot }}
 
     @php
-        $viberGroupLink = trim((string) config('services.viber.group_link', ''));
-        // Show only when an explicit link is configured to avoid accidental UI overlay in local/dev.
-        $showViberWidget = $viberGroupLink !== '';
-        $resolvedViberGroupLink = $viberGroupLink;
+        /** @var \App\Models\User|null $liveChatUser */
+        $liveChatUser = auth()->user();
+        $showLiveChatWidget = false;
+        $liveChatRoomCount = 0;
+
+        if ($liveChatUser?->hasPermission(\App\Models\User::PERMISSION_VIEW_DASHBOARD)) {
+            $showLiveChatWidget = true;
+            $liveChatRoomCount = in_array($liveChatUser->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_PM], true)
+                ? \App\Models\Project::query()->count()
+                : count($liveChatUser->assignedProjectIds());
+        }
     @endphp
 
-    @if ($showViberWidget)
-        <div class="viber-widget" data-viber-widget style="pointer-events: none;">
-            <section class="viber-card" data-viber-card style="pointer-events: none;">
-                <button type="button" class="viber-card-close" data-viber-close aria-label="Close Viber card">×</button>
-                <p class="viber-card-title">Join our Viber Community!</p>
-                <p class="viber-card-text">Get help, updates, and support from our team.</p>
-                <a href="{{ $resolvedViberGroupLink }}" target="_blank" rel="noopener noreferrer" class="viber-card-link">
-                    Join Viber Group →
+    @if ($showLiveChatWidget)
+        <div class="chat-widget" data-chat-widget style="pointer-events: none;">
+            <section class="chat-card" data-chat-card style="pointer-events: none;">
+                <button type="button" class="chat-card-close" data-chat-close aria-label="Close live chat card">×</button>
+                <div class="chat-card-header">
+                    <div class="chat-card-presence">
+                        <span class="chat-card-presence-dot"></span>
+                        <span>Live support</span>
+                    </div>
+                    <div class="chat-card-avatars" aria-hidden="true">
+                        <span>Q</span>
+                        <span>P</span>
+                        <span>A</span>
+                    </div>
+                </div>
+                <p class="chat-card-title">Open Live Chat</p>
+                <p class="chat-card-text">
+                    Messenger-style project rooms for assigned users. Admins and PMs are already inside.
+                </p>
+                <div class="chat-card-preview">
+                    <div class="chat-card-bubble chat-card-bubble-incoming">
+                        <span class="chat-card-bubble-name">Support Team</span>
+                        <span>Need an update? Drop it in the room.</span>
+                    </div>
+                    <div class="chat-card-bubble chat-card-bubble-outgoing">
+                        <span>Open {{ $liveChatRoomCount }} {{ \Illuminate\Support\Str::plural('Room', $liveChatRoomCount) }}</span>
+                    </div>
+                </div>
+                <a href="{{ route('project-chat.index') }}" class="chat-card-link">
+                    Jump into chat →
                 </a>
             </section>
 
-            <button type="button" class="viber-fab" data-viber-trigger aria-label="Open Viber Group Card" style="pointer-events: auto;">
-                <span class="viber-fab-ring"></span>
-                <span class="viber-fab-core">
-                    <i class="fa-brands fa-viber" aria-hidden="true"></i>
+            <button type="button" class="chat-fab" data-chat-trigger aria-label="Open live chat card" style="pointer-events: auto;">
+                <span class="chat-fab-ring"></span>
+                <span class="chat-fab-ping"></span>
+                <span class="chat-fab-core">
+                    <i class="fa-solid fa-comments" aria-hidden="true"></i>
                 </span>
             </button>
         </div>
@@ -48,10 +78,10 @@
 
     <script>
         (() => {
-            const widget = document.querySelector('[data-viber-widget]');
-            const closeButton = widget?.querySelector('[data-viber-close]');
-            const card = widget?.querySelector('[data-viber-card]');
-            const triggerButton = widget?.querySelector('[data-viber-trigger]');
+            const widget = document.querySelector('[data-chat-widget]');
+            const closeButton = widget?.querySelector('[data-chat-close]');
+            const card = widget?.querySelector('[data-chat-card]');
+            const triggerButton = widget?.querySelector('[data-chat-trigger]');
 
             if (!widget || !closeButton || !card || !triggerButton) {
                 return;

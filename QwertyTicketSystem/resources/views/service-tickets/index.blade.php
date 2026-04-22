@@ -36,13 +36,13 @@
                 <form method="GET" action="{{ route('service-tickets.index') }}"
                     class="mb-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div class="grid gap-3 md:grid-cols-12">
-                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-8">
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-6">
                             Search
                             <input type="text" name="search" value="{{ $filters['search'] ?? '' }}"
                                 placeholder="Search ID, title, or description" class="rounded-lg px-3 py-2 text-sm" />
                         </label>
 
-                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-4">
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
                             Project
                             <select name="project_id" class="rounded-lg px-3 py-2 text-sm">
                                 <option value="">All</option>
@@ -51,10 +51,20 @@
                                 @endforeach
                             </select>
                         </label>
+
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
+                            Service Type
+                            <select name="service_type" class="rounded-lg px-3 py-2 text-sm">
+                                <option value="">All</option>
+                                @foreach ($serviceTypes as $serviceType)
+                                    <option value="{{ $serviceType }}" @selected(($filters['service_type'] ?? '') === $serviceType)>{{ $serviceType }}</option>
+                                @endforeach
+                            </select>
+                        </label>
                     </div>
 
                     <div class="grid gap-3 md:grid-cols-12">
-                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-4">
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
                             Requester Type
                             <select name="requester_role" class="rounded-lg px-3 py-2 text-sm">
                                 <option value="">All</option>
@@ -66,7 +76,7 @@
                             </select>
                         </label>
 
-                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-4">
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
                             Status
                             <select name="status" class="rounded-lg px-3 py-2 text-sm">
                                 <option value="">All</option>
@@ -78,7 +88,33 @@
                             </select>
                         </label>
 
-                        <div class="flex flex-wrap items-end gap-2 md:col-span-4 md:justify-end">
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
+                            Created From
+                            <input type="date" name="created_date_from" value="{{ $filters['created_date_from'] ?? '' }}"
+                                class="rounded-lg px-3 py-2 text-sm" />
+                        </label>
+
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
+                            Created To
+                            <input type="date" name="created_date_to" value="{{ $filters['created_date_to'] ?? '' }}"
+                                class="rounded-lg px-3 py-2 text-sm" />
+                        </label>
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-12">
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
+                            Response From
+                            <input type="date" name="response_date_from" value="{{ $filters['response_date_from'] ?? '' }}"
+                                class="rounded-lg px-3 py-2 text-sm" />
+                        </label>
+
+                        <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
+                            Response To
+                            <input type="date" name="response_date_to" value="{{ $filters['response_date_to'] ?? '' }}"
+                                class="rounded-lg px-3 py-2 text-sm" />
+                        </label>
+
+                        <div class="flex flex-wrap items-end gap-2 md:col-span-6 md:justify-end">
                             <button type="submit"
                                 class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Apply</button>
                             <a href="{{ route('service-tickets.index') }}"
@@ -97,14 +133,21 @@
                                 <th class="px-3 py-2 font-bold text-slate-700">Title</th>
                                 <th class="px-3 py-2 font-bold text-slate-700">Status</th>
                                 <th class="px-3 py-2 font-bold text-slate-700">Submitted By</th>
+                                <th class="px-3 py-2 font-bold text-slate-700">Dates</th>
                                 <th class="px-3 py-2 font-bold text-slate-700">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($tickets as $ticket)
+                                @php
+                                    $latestResponse = $ticket->latestResponse;
+                                @endphp
                                 <tr class="border-t border-slate-100 bg-white">
                                     <td class="px-3 py-2 font-semibold">#{{ $ticket->id }}</td>
-                                    <td class="px-3 py-2 text-slate-600">{{ $ticket->project?->name ?? 'N/A' }}</td>
+                                    <td class="px-3 py-2 text-slate-600">
+                                        <div class="font-medium text-slate-700">{{ $ticket->project?->name ?? 'N/A' }}</div>
+                                        <div class="text-xs text-slate-500">{{ $ticket->project?->service_type ?? 'No service type' }}</div>
+                                    </td>
                                     <td class="px-3 py-2 text-slate-600">
                                         {{ $requesterRoles[$ticket->requester_role] ?? ucfirst($ticket->requester_role) }}
                                     </td>
@@ -117,6 +160,10 @@
                                     <td class="px-3 py-2 text-slate-600">
                                         {{ $ticket->submittedBy?->name ?? 'Public One-Time Link' }}
                                     </td>
+                                    <td class="px-3 py-2 text-xs text-slate-600">
+                                        <div>Created: {{ $ticket->created_at?->format('Y-m-d') ?? 'N/A' }}</div>
+                                        <div class="mt-1">Last response: {{ $latestResponse?->created_at?->format('Y-m-d') ?? 'No response' }}</div>
+                                    </td>
                                     <td class="px-3 py-2">
                                         <a href="{{ route('service-tickets.show', $ticket) }}"
                                             class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700">View
@@ -125,7 +172,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-3 py-6 text-center text-slate-500">No tickets found.</td>
+                                    <td colspan="8" class="px-3 py-6 text-center text-slate-500">No tickets found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

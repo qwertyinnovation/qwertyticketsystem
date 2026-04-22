@@ -47,4 +47,46 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    const chatThread = document.querySelector('[data-project-chat-thread]');
+    const chatMessageField = document.querySelector('[data-project-chat-message]');
+    const chatForm = document.querySelector('[data-project-chat-form]');
+
+    if (chatThread instanceof HTMLElement) {
+        chatThread.scrollTop = chatThread.scrollHeight;
+
+        window.setInterval(() => {
+            const hasDraftMessage = chatMessageField instanceof HTMLTextAreaElement
+                && chatMessageField.value.trim() !== '';
+
+            if (document.hidden || hasDraftMessage || document.activeElement === chatMessageField) {
+                return;
+            }
+
+            window.location.reload();
+        }, 15000);
+    }
+
+    if (chatMessageField instanceof HTMLTextAreaElement) {
+        const syncComposerHeight = () => {
+            chatMessageField.style.height = '0px';
+            chatMessageField.style.height = `${Math.min(chatMessageField.scrollHeight, 160)}px`;
+        };
+
+        syncComposerHeight();
+        chatMessageField.addEventListener('input', syncComposerHeight);
+        chatMessageField.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.shiftKey) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (chatMessageField.value.trim() === '' || !(chatForm instanceof HTMLFormElement)) {
+                return;
+            }
+
+            chatForm.requestSubmit();
+        });
+    }
 });

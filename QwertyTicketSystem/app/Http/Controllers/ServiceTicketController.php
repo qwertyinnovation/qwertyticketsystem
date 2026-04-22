@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -36,23 +37,43 @@ class ServiceTicketController extends Controller
             }
         }
 
-        $projects = $projectsQuery->get(['id', 'name']);
+        $projects = $projectsQuery->get(['id', 'name', 'service_type']);
         $projectIds = $projects->pluck('id')->map(static fn ($value): int => (int) $value)->all();
+        $serviceTypes = $projects->pluck('service_type')
+            ->filter(static fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(static fn (string $value): string => trim($value))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         $requesterRoles = ServiceTicket::requesterRoles();
         $statuses = ServiceTicket::statuses();
 
         $rawProjectId = $request->query('project_id');
         $projectId = is_numeric($rawProjectId) ? (int) $rawProjectId : null;
+        [$createdDateFrom, $createdDateTo] = $this->normalizeDateRange(
+            (string) $request->query('created_date_from', ''),
+            (string) $request->query('created_date_to', '')
+        );
+        [$responseDateFrom, $responseDateTo] = $this->normalizeDateRange(
+            (string) $request->query('response_date_from', ''),
+            (string) $request->query('response_date_to', '')
+        );
 
         $filters = [
             'search' => trim((string) $request->query('search', '')),
             'project_id' => $projectId !== null ? $projectId : null,
+            'service_type' => trim((string) $request->query('service_type', '')),
             'requester_role' => (string) $request->query('requester_role', ''),
             'status' => (string) $request->query('status', ''),
+            'created_date_from' => $createdDateFrom,
+            'created_date_to' => $createdDateTo,
+            'response_date_from' => $responseDateFrom,
+            'response_date_to' => $responseDateTo,
         ];
 
         $ticketsQuery = ServiceTicket::query()
-            ->with(['project', 'submittedBy'])
+            ->with(['project', 'submittedBy', 'latestResponse'])
             ->latest();
 
         if (! $canManageAll) {
@@ -84,6 +105,12 @@ class ServiceTicketController extends Controller
             $ticketsQuery->where('project_id', $filters['project_id']);
         }
 
+        if ($filters['service_type'] !== '' && in_array($filters['service_type'], $serviceTypes, true)) {
+            $ticketsQuery->whereHas('project', function ($query) use ($filters): void {
+                $query->where('service_type', $filters['service_type']);
+            });
+        }
+
         if ($filters['requester_role'] !== '' && array_key_exists($filters['requester_role'], $requesterRoles)) {
             $ticketsQuery->where('requester_role', $filters['requester_role']);
         }
@@ -92,10 +119,31 @@ class ServiceTicketController extends Controller
             $ticketsQuery->where('status', $filters['status']);
         }
 
+        if ($filters['created_date_from'] !== '') {
+            $ticketsQuery->whereDate('created_at', '>=', $filters['created_date_from']);
+        }
+
+        if ($filters['created_date_to'] !== '') {
+            $ticketsQuery->whereDate('created_at', '<=', $filters['created_date_to']);
+        }
+
+        if ($filters['response_date_from'] !== '' || $filters['response_date_to'] !== '') {
+            $ticketsQuery->whereHas('latestResponse', function ($query) use ($filters): void {
+                if ($filters['response_date_from'] !== '') {
+                    $query->whereDate('created_at', '>=', $filters['response_date_from']);
+                }
+
+                if ($filters['response_date_to'] !== '') {
+                    $query->whereDate('created_at', '<=', $filters['response_date_to']);
+                }
+            });
+        }
+
         return view('service-tickets.index', [
             'currentUser' => $user,
             'tickets' => $ticketsQuery->paginate(10)->withQueryString(),
             'projects' => $projects,
+            'serviceTypes' => $serviceTypes,
             'requesterRoles' => $requesterRoles,
             'statuses' => $statuses,
             'filters' => $filters,
@@ -189,6 +237,7 @@ class ServiceTicketController extends Controller
         /** @var User $user */
         $user = $request->user();
         $this->assertCanViewTicket($user, $serviceTicket);
+        $serviceTicket->ensurePublicTrackingToken();
 
         $serviceTicket->loadMissing(['project', 'submittedBy', 'photos', 'responses.respondedBy']);
 
@@ -198,6 +247,7 @@ class ServiceTicketController extends Controller
             'requesterRoles' => ServiceTicket::requesterRoles(),
             'statuses' => ServiceTicket::statuses(),
             'ticketFieldDefinitions' => ServiceDeskSetting::ticketFieldDefinitions(),
+            'trackingLink' => route('service-tickets.public.track', $serviceTicket->public_tracking_token),
             'canManageTicket' => $this->canManageTicketResponse($user, $serviceTicket),
             'canDeleteTicket' => $this->canManageAllTickets($user)
                 || (int) $serviceTicket->submitted_by_user_id === (int) $user->id,
@@ -251,6 +301,7 @@ class ServiceTicketController extends Controller
             'description' => $this->resolveStringFieldValue($schema, $validated, 'description'),
             'custom_fields' => $customFieldValues !== [] ? $customFieldValues : null,
             'status' => ServiceTicket::statuses()[0],
+            'public_tracking_token' => ServiceTicket::uniquePublicTrackingToken(),
         ]);
 
         if (($schema['photo']['enabled'] ?? false)) {
@@ -687,6 +738,42 @@ class ServiceTicketController extends Controller
             'image/webp',
             'image/bmp',
         ];
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function normalizeDateRange(string $from, string $to): array
+    {
+        $normalizedFrom = $this->normalizeDateFilter($from);
+        $normalizedTo = $this->normalizeDateFilter($to);
+
+        if ($normalizedFrom !== '' && $normalizedTo !== '' && $normalizedFrom > $normalizedTo) {
+            return [$normalizedTo, $normalizedFrom];
+        }
+
+        return [$normalizedFrom, $normalizedTo];
+    }
+
+    private function normalizeDateFilter(string $value): string
+    {
+        $normalized = trim($value);
+
+        if ($normalized === '') {
+            return '';
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', $normalized);
+        } catch (\Throwable) {
+            return '';
+        }
+
+        if ($date->format('Y-m-d') !== $normalized) {
+            return '';
+        }
+
+        return $normalized;
     }
 
     /**

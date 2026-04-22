@@ -94,6 +94,28 @@ class ProjectAssignmentTicketAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_service_ticket_detail_page_shows_public_tracker_link_for_sharing(): void
+    {
+        $adminUser = $this->userWithRole(User::ROLE_ADMIN);
+        $ticketOwner = $this->userWithRole(User::ROLE_CLIENT);
+        $project = $this->createProject('Tracker Sharing Project');
+        $ticket = $this->createTicket($project, $ticketOwner, 'Tracker Sharing Ticket');
+
+        $this->assertNull($ticket->public_tracking_token);
+
+        $response = $this->actingAs($adminUser)
+            ->get(route('service-tickets.show', $ticket));
+
+        $ticket->refresh();
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Public Tracker Link')
+            ->assertSee(route('service-tickets.public.track', $ticket->public_tracking_token), false);
+
+        $this->assertNotNull($ticket->public_tracking_token);
+    }
+
     public function test_response_attachment_allows_only_safe_document_and_image_types(): void
     {
         $adminUser = $this->userWithRole(User::ROLE_ADMIN);

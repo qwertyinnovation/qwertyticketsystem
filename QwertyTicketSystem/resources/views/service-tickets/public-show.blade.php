@@ -1,4 +1,4 @@
-<x-layouts.app :title="'Service Ticket Details | Qwerty Ticket System'">
+<x-layouts.app :title="'Public Ticket Tracker | Qwerty Ticket System'">
     @php
         $customFieldDefinitions = collect($ticketFieldDefinitions ?? [])->filter(
             fn (array $definition): bool => ! ($definition['builtin'] ?? false)
@@ -11,25 +11,27 @@
         );
     @endphp
 
-    <div class="app-shell app-shell-dashboard">
-        @include('partials.service-desk-sidebar', ['activeMenu' => 'service-tickets', 'currentUser' => $currentUser])
-
+    <main class="mx-auto w-full max-w-5xl p-4">
         <section class="grid gap-4">
-            @include('partials.alerts')
-
             <article class="panel rounded-2xl border bg-white p-4">
-                <div class="flex flex-wrap items-start justify-between gap-2">
+                <p class="text-xs font-bold uppercase tracking-[0.08em] text-cyan-700">Public Tracker</p>
+                <div class="mt-2 flex flex-wrap items-start justify-between gap-2">
                     <div>
                         <h1 class="text-2xl font-extrabold tracking-tight">Ticket #{{ $serviceTicket->id }}</h1>
-                        <p class="mt-1 text-sm text-slate-600">{{ $serviceTicket->project?->name ?? 'Unknown Project' }} • {{ $requesterRoles[$serviceTicket->requester_role] ?? ucfirst($serviceTicket->requester_role) }}</p>
+                        <p class="mt-1 text-sm text-slate-600">
+                            {{ $serviceTicket->project?->name ?? 'Unknown Project' }} •
+                            {{ $requesterRoles[$serviceTicket->requester_role] ?? ucfirst($serviceTicket->requester_role) }}
+                        </p>
                     </div>
                     <span class="badge rounded-full px-2 py-1 text-xs">{{ $serviceTicket->status }}</span>
                 </div>
+            </article>
 
-                <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <article class="panel rounded-2xl border bg-white p-4">
+                <div class="grid gap-3 md:grid-cols-2">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p class="text-xs font-bold uppercase text-slate-500">Submitted By</p>
-                        <p class="mt-1 text-sm font-semibold">{{ $serviceTicket->submittedBy?->name ?? 'Unknown' }}</p>
+                        <p class="mt-1 text-sm font-semibold">{{ $serviceTicket->submittedBy?->name ?? 'Public One-Time Link' }}</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p class="text-xs font-bold uppercase text-slate-500">Created At</p>
@@ -44,32 +46,7 @@
 
                 <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p class="text-xs font-bold uppercase text-slate-500">Description</p>
-                    <p class="mt-1 text-sm text-slate-700 whitespace-pre-line">{{ $serviceTicket->description ?: 'No description provided.' }}</p>
-                </div>
-
-                <div class="mt-3 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
-                    <div class="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                            <p class="text-xs font-bold uppercase text-cyan-800">Public Tracker Link</p>
-                            <p class="mt-1 text-sm text-cyan-900">Share this read-only link with the client so they can check the ticket status and response history.</p>
-                        </div>
-                        <a href="{{ $trackingLink }}" target="_blank" rel="noreferrer" class="btn inline-flex rounded-lg border border-cyan-300 bg-white px-3 py-2 text-xs font-bold text-cyan-800">
-                            Open Tracker
-                        </a>
-                    </div>
-
-                    <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-                        <input
-                            id="ticketTrackingLinkInput"
-                            type="text"
-                            readonly
-                            value="{{ $trackingLink }}"
-                            class="w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs text-cyan-900"
-                        />
-                        <button type="button" id="copyTicketTrackingLinkBtn" class="btn rounded-lg border border-cyan-300 bg-cyan-100 px-3 py-2 text-xs font-bold text-cyan-800 sm:w-auto">
-                            Copy
-                        </button>
-                    </div>
+                    <p class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ $serviceTicket->description ?: 'No description provided.' }}</p>
                 </div>
 
                 @if ($customFieldDefinitions->isNotEmpty())
@@ -91,7 +68,7 @@
                                 @foreach ($filledCustomFields as $fieldKey => $definition)
                                     <div class="rounded-lg border border-slate-200 bg-white p-2">
                                         <p class="text-xs font-bold uppercase text-slate-500">{{ $definition['label'] }}</p>
-                                        <p class="mt-1 text-sm text-slate-700 whitespace-pre-line">{{ $customFieldValues->get($fieldKey) }}</p>
+                                        <p class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ $customFieldValues->get($fieldKey) }}</p>
                                     </div>
                                 @endforeach
                             </div>
@@ -146,11 +123,10 @@
                         <div class="mt-2 grid gap-2">
                             @foreach ($responseEntries as $response)
                                 @php
-                                    $isCurrentUserResponse = (int) ($response->responded_by_user_id ?? 0) === (int) ($currentUser->id ?? 0);
                                     $isImageAttachment = is_string($response->attachment_mime_type)
                                         && str_starts_with($response->attachment_mime_type, 'image/');
                                 @endphp
-                                <article class="rounded-lg border p-3 {{ $isCurrentUserResponse ? 'border-cyan-200 bg-cyan-50 ml-6' : 'border-slate-200 bg-white mr-6' }}">
+                                <article class="rounded-lg border border-slate-200 bg-white p-3">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <p class="text-xs font-bold uppercase text-slate-500">
                                             {{ $response->respondedBy?->name ?? 'Unknown Responder' }}
@@ -158,7 +134,7 @@
                                         <span class="badge rounded-full px-2 py-1 text-xs">{{ $response->status }}</span>
                                     </div>
                                     <p class="mt-1 text-xs text-slate-500">{{ $response->created_at?->format('Y-m-d H:i') }}</p>
-                                    <p class="mt-2 text-sm text-slate-700 whitespace-pre-line">{{ $response->response_message ?: 'No message provided.' }}</p>
+                                    <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ $response->response_message ?: 'No message provided.' }}</p>
 
                                     @if ($response->attachment_path)
                                         @if ($isImageAttachment)
@@ -176,13 +152,13 @@
                             @endforeach
 
                             @if ($legacyResponseAvailable)
-                                <article class="rounded-lg border border-amber-200 bg-amber-50 p-3 mr-6">
+                                <article class="rounded-lg border border-amber-200 bg-amber-50 p-3">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <p class="text-xs font-bold uppercase text-amber-700">Legacy Response</p>
                                         <span class="badge rounded-full px-2 py-1 text-xs">{{ $serviceTicket->status }}</span>
                                     </div>
                                     <p class="mt-1 text-xs text-amber-700">{{ $serviceTicket->updated_at?->format('Y-m-d H:i') }}</p>
-                                    <p class="mt-2 text-sm text-amber-900 whitespace-pre-line">{{ $serviceTicket->response_description ?: 'No message provided.' }}</p>
+                                    <p class="mt-2 whitespace-pre-line text-sm text-amber-900">{{ $serviceTicket->response_description ?: 'No message provided.' }}</p>
                                     @if ($serviceTicket->response_photo_path)
                                         <a href="{{ asset('storage/'.$serviceTicket->response_photo_path) }}" target="_blank" rel="noreferrer" class="mt-2 inline-flex text-sm font-semibold text-cyan-700 underline">
                                             Open Attachment
@@ -193,88 +169,7 @@
                         </div>
                     @endif
                 </div>
-
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <a href="{{ route('service-tickets.index') }}" class="btn rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">Back to Tickets</a>
-                </div>
             </article>
-
-            @if ($canManageTicket)
-                <article class="panel rounded-2xl border bg-white p-4">
-                    <h2 class="text-lg font-bold">Add Response</h2>
-                    <p class="mt-1 text-sm text-slate-600">Responses are added as timeline entries. Allowed attachment types: PDF, Excel, Word, and images only.</p>
-
-                    <form method="POST" action="{{ route('service-tickets.response.update', $serviceTicket) }}" enctype="multipart/form-data" class="mt-3 grid gap-3">
-                        @csrf
-                        @method('PUT')
-
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Status
-                            <select name="status" class="rounded-lg px-3 py-2 text-sm" required>
-                                @foreach ($statuses as $status)
-                                    <option value="{{ $status }}" @selected(old('status', $serviceTicket->status) === $status)>{{ $status }}</option>
-                                @endforeach
-                            </select>
-                            @error('status')
-                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
-
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Response Message
-                            <textarea name="response_message" rows="4" class="rounded-lg px-3 py-2 text-sm">{{ old('response_message') }}</textarea>
-                            @error('response_message')
-                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
-
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Attachment
-                            <input type="file" name="response_attachment" class="rounded-lg px-3 py-2 text-sm" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.bmp" />
-                            <span class="text-xs text-slate-500">Only PDF, Excel, Word, and photo files are allowed.</span>
-                            @error('response_attachment')
-                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
-
-                        <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">Add Response</button>
-                    </form>
-                </article>
-            @endif
-
-            @if ($canDeleteTicket)
-                <form method="POST" action="{{ route('service-tickets.destroy', $serviceTicket) }}">
-                    @csrf
-                    @method('DELETE')
-                    <button
-                        type="submit"
-                        class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
-                        onclick="return confirm('Delete ticket #{{ $serviceTicket->id }}?');"
-                    >
-                        Delete Ticket
-                    </button>
-                </form>
-            @endif
         </section>
-    </div>
-
-    <script>
-        const copyTrackerButton = document.getElementById('copyTicketTrackingLinkBtn');
-        const trackerInput = document.getElementById('ticketTrackingLinkInput');
-
-        if (copyTrackerButton && trackerInput) {
-            copyTrackerButton.addEventListener('click', async () => {
-                try {
-                    await navigator.clipboard.writeText(trackerInput.value);
-                    copyTrackerButton.textContent = 'Copied';
-                    setTimeout(() => {
-                        copyTrackerButton.textContent = 'Copy';
-                    }, 1200);
-                } catch (error) {
-                    trackerInput.select();
-                    document.execCommand('copy');
-                }
-            });
-        }
-    </script>
+    </main>
 </x-layouts.app>

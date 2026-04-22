@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 
 class Project extends Model
 {
@@ -107,10 +109,59 @@ class Project extends Model
         return $this->hasMany(ServiceTicket::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(ProjectMessage::class)
+            ->orderBy('created_at')
+            ->orderBy('id');
+    }
+
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(ProjectMessage::class)->latestOfMany();
+    }
+
     public function assignedUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'project_user_assignments')
             ->withTimestamps();
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function chatParticipants(): Collection
+    {
+        return User::query()
+            ->where(function ($query): void {
+                $query->whereIn('role', [User::ROLE_ADMIN, User::ROLE_PM])
+                    ->orWhereHas('assignedProjects', function ($assignedProjectsQuery): void {
+                        $assignedProjectsQuery->where('projects.id', $this->id);
+                    });
+            })
+            ->orderByRaw(
+                "case role
+                    when '".User::ROLE_ADMIN."' then 0
+                    when '".User::ROLE_PM."' then 1
+                    when '".User::ROLE_INTERNAL."' then 2
+                    when '".User::ROLE_VENDOR."' then 3
+                    when '".User::ROLE_CLIENT."' then 4
+                    else 5
+                end"
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'role']);
+    }
+
+    public function hasChatParticipant(User $user): bool
+    {
+        if (in_array($user->role, [User::ROLE_ADMIN, User::ROLE_PM], true)) {
+            return true;
+        }
+
+        return $this->assignedUsers()
+            ->where('users.id', $user->id)
+            ->exists();
     }
 
     /**

@@ -28,6 +28,12 @@
             'enabled' => $resolvedCurrentUser?->hasPermission(\App\Models\User::PERMISSION_MANAGE_TICKETS) ?? false,
         ],
         [
+            'key' => 'live-chat',
+            'label' => 'Live Chat',
+            'href' => route('project-chat.index'),
+            'enabled' => $resolvedCurrentUser?->hasPermission(\App\Models\User::PERMISSION_VIEW_DASHBOARD) ?? false,
+        ],
+        [
             'key' => 'settings',
             'label' => 'Settings',
             'href' => route('settings.index'),

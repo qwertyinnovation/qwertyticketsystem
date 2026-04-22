@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class ServiceTicket extends Model
 {
@@ -21,6 +23,7 @@ class ServiceTicket extends Model
         'status',
         'response_description',
         'response_photo_path',
+        'public_tracking_token',
     ];
 
     public function project(): BelongsTo
@@ -43,6 +46,11 @@ class ServiceTicket extends Model
         return $this->hasMany(ServiceTicketResponse::class)
             ->orderBy('created_at')
             ->orderBy('id');
+    }
+
+    public function latestResponse(): HasOne
+    {
+        return $this->hasOne(ServiceTicketResponse::class)->latestOfMany('created_at');
     }
 
     /**
@@ -69,6 +77,32 @@ class ServiceTicket extends Model
         $schema = ServiceDeskSetting::ticketFormSchema();
 
         return $schema[$role] ?? ServiceDeskSetting::defaultTicketFormSchema()[User::ROLE_CLIENT];
+    }
+
+    public static function generatePublicTrackingToken(): string
+    {
+        return Str::random(48);
+    }
+
+    public static function uniquePublicTrackingToken(): string
+    {
+        do {
+            $token = self::generatePublicTrackingToken();
+        } while (self::query()->where('public_tracking_token', $token)->exists());
+
+        return $token;
+    }
+
+    public function ensurePublicTrackingToken(): string
+    {
+        if (is_string($this->public_tracking_token) && trim($this->public_tracking_token) !== '') {
+            return $this->public_tracking_token;
+        }
+
+        $this->public_tracking_token = self::uniquePublicTrackingToken();
+        $this->save();
+
+        return $this->public_tracking_token;
     }
 
     /**
