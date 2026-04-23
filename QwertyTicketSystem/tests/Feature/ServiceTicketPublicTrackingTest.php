@@ -77,4 +77,46 @@ class ServiceTicketPublicTrackingTest extends TestCase
             ->assertStatus(410)
             ->assertSeeText('This one-time link has already been used.');
     }
+
+    public function test_public_on_call_submission_requires_terms_acceptance(): void
+    {
+        $project = Project::query()->create([
+            'name' => 'On Call Public Project',
+            'category' => Project::DEFAULT_CATEGORIES[0],
+            'service_type' => Project::DEFAULT_SERVICE_TYPES[0],
+            'priority' => Project::DEFAULT_PRIORITIES[0],
+            'status' => 'On Call',
+            'description' => 'Public on-call tracking project',
+        ]);
+
+        $publicLink = ServiceTicketPublicLink::query()->create([
+            'token' => 'public-on-call-submit-token',
+            'project_id' => $project->id,
+            'requester_role' => User::ROLE_CLIENT,
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $this->from(route('service-tickets.public.create', $publicLink))
+            ->post(route('service-tickets.public.store', $publicLink), [
+                'title' => 'On Call Portal Issue',
+                'description' => 'Terms should be required.',
+            ])
+            ->assertRedirect(route('service-tickets.public.create', $publicLink))
+            ->assertSessionHasErrors('on_call_terms_accepted');
+
+        $this->assertDatabaseCount('service_tickets', 0);
+
+        $this->post(route('service-tickets.public.store', $publicLink), [
+            'title' => 'On Call Portal Issue',
+            'description' => 'Terms accepted.',
+            'on_call_terms_accepted' => '1',
+        ])
+            ->assertOk()
+            ->assertSeeText('Ticket Submitted');
+
+        $this->assertDatabaseHas('service_tickets', [
+            'project_id' => $project->id,
+            'title' => 'On Call Portal Issue',
+        ]);
+    }
 }

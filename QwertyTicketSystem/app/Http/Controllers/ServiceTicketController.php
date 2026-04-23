@@ -220,11 +220,12 @@ class ServiceTicketController extends Controller
 
         return view('service-tickets.create', [
             'currentUser' => $user,
-            'projects' => $projectsQuery->get(['id', 'name']),
+            'projects' => $projectsQuery->get(['id', 'name', 'service_type', 'status']),
             'requesterRoles' => $requesterRoles,
             'selectedRequesterRole' => $selectedRole,
             'ticketSchemaByRole' => ServiceDeskSetting::ticketFormSchema(),
             'ticketFieldDefinitions' => ServiceDeskSetting::ticketFieldDefinitions(),
+            'ticketTermsText' => ServiceDeskSetting::ticketTermsText(),
             'canSelectRequesterRole' => $canSelectRequesterRole,
             'formAction' => route('service-tickets.store'),
             'isPublicForm' => false,
@@ -290,6 +291,8 @@ class ServiceTicketController extends Controller
         }
 
         $validated = $request->validate($rules);
+        $project = Project::query()->findOrFail((int) $validated['project_id']);
+        $this->validateOnCallTerms($request, $project);
         $customFieldValues = $this->extractCustomFieldValues($validated, $schema, $fieldDefinitions);
 
         /** @var ServiceTicket $ticket */
@@ -624,6 +627,19 @@ class ServiceTicketController extends Controller
         $value = $validated[$fieldKey] ?? null;
 
         return is_string($value) ? $value : null;
+    }
+
+    private function validateOnCallTerms(Request $request, Project $project): void
+    {
+        if (! $project->requiresTicketTermsAcceptance()) {
+            return;
+        }
+
+        $request->validate([
+            'on_call_terms_accepted' => ['accepted'],
+        ], [
+            'on_call_terms_accepted.accepted' => 'You must accept the Terms and Conditions before submitting this ticket.',
+        ]);
     }
 
     /**

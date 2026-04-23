@@ -10,6 +10,8 @@ class ServiceDeskSetting extends Model
     public const KEY_TICKET_FORM_SCHEMA = 'ticket_form_schema';
     public const KEY_TICKET_CUSTOM_FIELDS = 'ticket_custom_fields';
     public const KEY_PUBLIC_LINK_EXPIRY_MINUTES = 'public_link_expiry_minutes';
+    public const KEY_TICKET_TERMS_TEXT = 'ticket_terms_text';
+    public const KEY_TICKET_TERMS_TRIGGER_STATUSES = 'ticket_terms_trigger_statuses';
 
     protected $fillable = [
         'key',
@@ -128,6 +130,53 @@ class ServiceDeskSetting extends Model
         self::query()->updateOrCreate(
             ['key' => self::KEY_PUBLIC_LINK_EXPIRY_MINUTES],
             ['value' => ['minutes' => $safeMinutes]]
+        );
+    }
+
+    public static function ticketTermsText(): string
+    {
+        $stored = self::valueByKey(self::KEY_TICKET_TERMS_TEXT);
+        $text = trim((string) ($stored['text'] ?? ''));
+
+        return $text !== '' ? $text : self::defaultTicketTermsText();
+    }
+
+    public static function updateTicketTermsText(string $text): void
+    {
+        $normalized = trim($text);
+
+        self::query()->updateOrCreate(
+            ['key' => self::KEY_TICKET_TERMS_TEXT],
+            ['value' => ['text' => $normalized !== '' ? $normalized : self::defaultTicketTermsText()]]
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function ticketTermsTriggerStatuses(): array
+    {
+        $stored = self::valueByKey(self::KEY_TICKET_TERMS_TRIGGER_STATUSES);
+
+        if (! is_array($stored['statuses'] ?? null)) {
+            return self::defaultTicketTermsTriggerStatuses();
+        }
+
+        /** @var array<int, mixed> $statuses */
+        $statuses = $stored['statuses'];
+        $normalized = self::normalizeStringList($statuses, []);
+
+        return $normalized !== [] ? $normalized : [];
+    }
+
+    /**
+     * @param  array<int, string>  $statuses
+     */
+    public static function updateTicketTermsTriggerStatuses(array $statuses): void
+    {
+        self::query()->updateOrCreate(
+            ['key' => self::KEY_TICKET_TERMS_TRIGGER_STATUSES],
+            ['value' => ['statuses' => self::normalizeStringList($statuses, [])]]
         );
     }
 
@@ -272,6 +321,19 @@ class ServiceDeskSetting extends Model
     public static function defaultPublicLinkExpiryMinutes(): int
     {
         return 120;
+    }
+
+    public static function defaultTicketTermsText(): string
+    {
+        return 'By selecting this option, I agree that the requested on-call service will be billed separately, and an official invoice will be issued based on the service provided.';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function defaultTicketTermsTriggerStatuses(): array
+    {
+        return ['On Call'];
     }
 
     /**

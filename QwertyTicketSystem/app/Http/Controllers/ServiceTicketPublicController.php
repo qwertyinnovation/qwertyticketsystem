@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\ServiceDeskSetting;
 use App\Models\ServiceTicket;
 use App\Models\ServiceTicketPhoto;
@@ -48,6 +49,7 @@ class ServiceTicketPublicController extends Controller
             'ticketFieldDefinitions' => ServiceDeskSetting::ticketFieldDefinitions(),
             'requesterRoles' => ServiceTicket::requesterRoles(),
             'selectedRequesterRole' => $publicLink->requester_role,
+            'ticketTermsText' => ServiceDeskSetting::ticketTermsText(),
             'formAction' => route('service-tickets.public.store', $publicLink),
             'isPublicForm' => true,
         ]);
@@ -59,6 +61,7 @@ class ServiceTicketPublicController extends Controller
             return $this->invalidPublicLinkResponse($publicLink);
         }
 
+        $publicLink->loadMissing('project');
         $schema = ServiceTicket::formSchemaForRole($publicLink->requester_role);
         $fieldDefinitions = ServiceDeskSetting::ticketFieldDefinitions();
 
@@ -69,6 +72,7 @@ class ServiceTicketPublicController extends Controller
         }
 
         $validated = $request->validate($rules);
+        $this->validateOnCallTerms($request, $publicLink->project);
         $customFieldValues = $this->extractCustomFieldValues($validated, $schema, $fieldDefinitions);
 
         $ticket = DB::transaction(function () use ($publicLink, $validated, $schema, $request, $customFieldValues): ?ServiceTicket {
@@ -314,6 +318,19 @@ class ServiceTicketPublicController extends Controller
         $value = $validated[$fieldKey] ?? null;
 
         return is_string($value) ? $value : null;
+    }
+
+    private function validateOnCallTerms(Request $request, ?Project $project): void
+    {
+        if (! $project instanceof Project || ! $project->requiresTicketTermsAcceptance()) {
+            return;
+        }
+
+        $request->validate([
+            'on_call_terms_accepted' => ['accepted'],
+        ], [
+            'on_call_terms_accepted.accepted' => 'You must accept the Terms and Conditions before submitting this ticket.',
+        ]);
     }
 
     /**

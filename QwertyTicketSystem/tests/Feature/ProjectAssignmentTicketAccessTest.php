@@ -235,6 +235,48 @@ class ProjectAssignmentTicketAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_on_call_project_ticket_submission_requires_terms_acceptance(): void
+    {
+        $clientUser = $this->userWithRole(User::ROLE_CLIENT);
+        $project = $this->createProject('On Call Project', null, 'On Call');
+        $project->assignedUsers()->sync([$clientUser->id]);
+
+        $this->actingAs($clientUser)
+            ->get(route('service-tickets.create'))
+            ->assertOk()
+            ->assertSee('data-project-requires-terms="1"', false);
+
+        $this->actingAs($clientUser)
+            ->from(route('service-tickets.create'))
+            ->post(route('service-tickets.store'), [
+                'project_id' => $project->id,
+                'title' => 'On Call Ticket',
+                'description' => 'Terms must be accepted first.',
+            ])
+            ->assertRedirect(route('service-tickets.create'))
+            ->assertSessionHasErrors('on_call_terms_accepted');
+
+        $this->assertDatabaseMissing('service_tickets', [
+            'project_id' => $project->id,
+            'title' => 'On Call Ticket',
+        ]);
+
+        $this->actingAs($clientUser)
+            ->post(route('service-tickets.store'), [
+                'project_id' => $project->id,
+                'title' => 'On Call Ticket',
+                'description' => 'Terms accepted.',
+                'on_call_terms_accepted' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('service_tickets', [
+            'project_id' => $project->id,
+            'submitted_by_user_id' => $clientUser->id,
+            'title' => 'On Call Ticket',
+        ]);
+    }
+
     public function test_project_create_and_update_sync_assigned_users(): void
     {
         $projectManager = $this->userWithRole(User::ROLE_PM);
@@ -318,14 +360,14 @@ class ProjectAssignmentTicketAccessTest extends TestCase
         );
     }
 
-    private function createProject(string $name): Project
+    private function createProject(string $name, ?string $serviceType = null, ?string $status = null): Project
     {
         return Project::query()->create([
             'name' => $name,
             'category' => Project::DEFAULT_CATEGORIES[0],
-            'service_type' => Project::DEFAULT_SERVICE_TYPES[0],
+            'service_type' => $serviceType ?? Project::DEFAULT_SERVICE_TYPES[0],
             'priority' => Project::DEFAULT_PRIORITIES[0],
-            'status' => Project::DEFAULT_STATUSES[0],
+            'status' => $status ?? Project::DEFAULT_STATUSES[0],
             'description' => $name.' description',
         ]);
     }

@@ -1,5 +1,10 @@
 @php
     $activeSchema = $ticketSchemaByRole[$selectedRequesterRole] ?? [];
+    $selectedProjectId = (int) old('project_id');
+    $selectedProject = $isPublicForm
+        ? $publicLink->project
+        : $projects->firstWhere('id', $selectedProjectId);
+    $shouldShowTicketTerms = $selectedProject?->requiresTicketTermsAcceptance() ?? false;
 @endphp
 
 <form method="POST" action="{{ $formAction }}" enctype="multipart/form-data" class="mt-3 grid gap-3">
@@ -19,10 +24,16 @@
     @else
         <label class="grid gap-1 text-sm font-semibold">
             Project
-            <select name="project_id" class="rounded-lg px-3 py-2 text-sm" required>
+            <select id="ticketProjectSelect" name="project_id" class="rounded-lg px-3 py-2 text-sm" required>
                 <option value="">Select project</option>
                 @foreach ($projects as $project)
-                    <option value="{{ $project->id }}" @selected((int) old('project_id') === (int) $project->id)>{{ $project->name }}</option>
+                    <option
+                        value="{{ $project->id }}"
+                        data-project-requires-terms="{{ $project->requiresTicketTermsAcceptance() ? '1' : '0' }}"
+                        @selected((int) old('project_id') === (int) $project->id)
+                    >
+                        {{ $project->name }}
+                    </option>
                 @endforeach
             </select>
             @error('project_id')
@@ -125,6 +136,29 @@
         </label>
     @endforeach
 
+    <div id="onCallTermsWrapper" class="rounded-xl border border-slate-300 bg-slate-50 p-4 text-slate-900 shadow-sm" @if (! $shouldShowTicketTerms) style="display:none" @endif>
+        <label for="onCallTermsAccepted" class="flex items-start gap-3">
+            <input
+                type="checkbox"
+                name="on_call_terms_accepted"
+                id="onCallTermsAccepted"
+                value="1"
+                class="mt-1 h-5 w-5 rounded border-slate-400 bg-white text-cyan-600 focus:ring-cyan-500"
+                @checked(old('on_call_terms_accepted'))
+                @required($shouldShowTicketTerms)
+            />
+            <span class="grid gap-1.5">
+                <span class="text-base font-bold tracking-tight text-slate-950">Terms and Conditions</span>
+                <span class="text-sm font-normal leading-7 text-slate-800">
+                    {{ $ticketTermsText }}
+                </span>
+            </span>
+        </label>
+        @error('on_call_terms_accepted')
+            <span class="mt-2 block text-xs font-medium text-red-600">{{ $message }}</span>
+        @enderror
+    </div>
+
     <button type="submit" class="btn btn-primary rounded-lg px-3 py-2 text-sm font-bold text-white">
         {{ $isPublicForm ? 'Submit via One-Time Link' : 'Submit Ticket' }}
     </button>
@@ -135,9 +169,13 @@
         const ticketSchemaByRole = @json($ticketSchemaByRole);
         const selectedRequesterRole = @json($selectedRequesterRole);
         const roleSelector = document.getElementById('requesterRoleSelect');
+        const projectSelector = document.getElementById('ticketProjectSelect');
         const photosInput = document.getElementById('ticketPhotosInput');
         const previewContainer = document.getElementById('ticketPhotoPreview');
+        const onCallTermsWrapper = document.getElementById('onCallTermsWrapper');
+        const onCallTermsCheckbox = document.getElementById('onCallTermsAccepted');
         const fieldWrappers = Array.from(document.querySelectorAll('[data-ticket-field]'));
+        const isPublicTermsProject = @json($shouldShowTicketTerms);
 
         const applySchema = (roleKey) => {
             const schema = ticketSchemaByRole[roleKey] || {};
@@ -203,13 +241,38 @@
             });
         };
 
+        const syncOnCallTerms = () => {
+            if (!onCallTermsWrapper || !onCallTermsCheckbox) {
+                return;
+            }
+
+            let shouldShow = isPublicTermsProject;
+
+            if (projectSelector) {
+                const selectedOption = projectSelector.options[projectSelector.selectedIndex];
+                shouldShow = selectedOption?.dataset.projectRequiresTerms === '1';
+            }
+
+            onCallTermsWrapper.style.display = shouldShow ? '' : 'none';
+            onCallTermsCheckbox.required = shouldShow;
+
+            if (!shouldShow) {
+                onCallTermsCheckbox.checked = false;
+            }
+        };
+
         if (roleSelector) {
             roleSelector.addEventListener('change', (event) => {
                 applySchema(event.target.value);
             });
         }
 
+        if (projectSelector) {
+            projectSelector.addEventListener('change', syncOnCallTerms);
+        }
+
         applySchema(roleSelector ? roleSelector.value : selectedRequesterRole);
+        syncOnCallTerms();
 
         if (photosInput) {
             photosInput.addEventListener('change', renderPhotoPreview);

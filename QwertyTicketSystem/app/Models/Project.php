@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class Project extends Model
 {
@@ -162,6 +163,31 @@ class Project extends Model
         return $this->assignedUsers()
             ->where('users.id', $user->id)
             ->exists();
+    }
+
+    public function requiresTicketTermsAcceptance(): bool
+    {
+        $status = self::normalizeComparisonValue($this->status);
+
+        if ($status === '') {
+            return false;
+        }
+
+        foreach (ServiceDeskSetting::ticketTermsTriggerStatuses() as $triggerStatus) {
+            if ($status === self::normalizeComparisonValue($triggerStatus)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function normalizeComparisonValue(?string $value): string
+    {
+        return Str::of((string) $value)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '')
+            ->value();
     }
 
     /**

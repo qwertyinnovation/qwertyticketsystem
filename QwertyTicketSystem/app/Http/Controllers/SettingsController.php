@@ -21,6 +21,8 @@ class SettingsController extends Controller
             'ticketCustomFields' => ServiceDeskSetting::ticketCustomFields(),
             'ticketCustomFieldTypeLabels' => ServiceDeskSetting::ticketCustomFieldTypeLabels(),
             'publicLinkExpiryMinutes' => ServiceDeskSetting::publicLinkExpiryMinutes(),
+            'ticketTermsText' => ServiceDeskSetting::ticketTermsText(),
+            'ticketTermsTriggerStatuses' => ServiceDeskSetting::ticketTermsTriggerStatuses(),
         ]);
     }
 
@@ -31,6 +33,8 @@ class SettingsController extends Controller
             'project_service_types' => ['required', 'string'],
             'project_statuses' => ['required', 'string'],
             'public_link_expiry_minutes' => ['required', 'integer', 'min:1', 'max:10080'],
+            'ticket_terms_text' => ['required', 'string', 'max:3000'],
+            'ticket_terms_trigger_statuses' => ['nullable', 'string'],
             'custom_fields' => ['nullable', 'array'],
             'custom_fields.*.key' => ['nullable', 'string', 'max:80'],
             'custom_fields.*.label' => ['nullable', 'string', 'max:120'],
@@ -87,6 +91,10 @@ class SettingsController extends Controller
 
         ServiceDeskSetting::updateTicketFormSchema($schema);
         ServiceDeskSetting::updatePublicLinkExpiryMinutes((int) $validated['public_link_expiry_minutes']);
+        ServiceDeskSetting::updateTicketTermsText($validated['ticket_terms_text']);
+        ServiceDeskSetting::updateTicketTermsTriggerStatuses(
+            $this->linesFromText((string) ($validated['ticket_terms_trigger_statuses'] ?? ''))
+        );
 
         return back()->with('status', 'Settings updated.');
     }

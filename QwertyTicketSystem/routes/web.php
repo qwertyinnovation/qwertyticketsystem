@@ -9,6 +9,7 @@ use App\Http\Controllers\ServiceTicketPublicController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserManagementController;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function (): void {
@@ -16,6 +17,18 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'create']);
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 });
+
+Route::get('/error-preview/{code}', function (Request $request, int $code) {
+    abort_unless(app()->environment(['local', 'testing']), 404);
+
+    if (! in_array($code, [403, 404, 419, 500, 503], true)) {
+        abort(404);
+    }
+
+    return response()->view("errors.{$code}", [
+        'exception' => new \Symfony\Component\HttpKernel\Exception\HttpException($code),
+    ], $code);
+})->whereNumber('code')->name('errors.preview');
 
 Route::get('/submit-ticket/{publicLink:token}', [ServiceTicketPublicController::class, 'create'])->name('service-tickets.public.create');
 Route::post('/submit-ticket/{publicLink:token}', [ServiceTicketPublicController::class, 'store'])->name('service-tickets.public.store');

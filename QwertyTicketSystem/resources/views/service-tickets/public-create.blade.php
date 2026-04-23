@@ -14,6 +14,7 @@
                 'selectedRequesterRole' => $selectedRequesterRole,
                 'ticketSchemaByRole' => $ticketSchemaByRole,
                 'ticketFieldDefinitions' => $ticketFieldDefinitions,
+                'ticketTermsText' => $ticketTermsText,
                 'canSelectRequesterRole' => false,
                 'publicLink' => $publicLink,
             ])

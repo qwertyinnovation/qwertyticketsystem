@@ -104,6 +104,39 @@
                 </article>
 
                 <article class="panel rounded-2xl border bg-white p-4">
+                    <h2 class="text-lg font-bold">Terms and Conditions</h2>
+                    <p class="mt-1 text-sm text-slate-600">Choose which project statuses require a terms checkbox and customize the message shown in the ticket form.</p>
+
+                    <label class="mt-3 grid gap-2 text-sm font-semibold">
+                        Statuses Requiring Terms Acceptance
+                        <textarea
+                            name="ticket_terms_trigger_statuses"
+                            rows="4"
+                            class="rounded-lg px-3 py-2 text-sm"
+                            placeholder="On Call&#10;Billable Support&#10;Emergency Visit"
+                        >{{ old('ticket_terms_trigger_statuses', implode("\n", $ticketTermsTriggerStatuses)) }}</textarea>
+                        <p class="text-xs font-normal text-slate-500">One project status per line. When a project uses one of these statuses, users must accept the terms before submitting a ticket.</p>
+                        @error('ticket_terms_trigger_statuses')
+                            <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                        @enderror
+                    </label>
+
+                    <label class="mt-3 grid gap-2 text-sm font-semibold">
+                        Agreement Text
+                        <textarea
+                            name="ticket_terms_text"
+                            rows="4"
+                            class="rounded-lg px-3 py-2 text-sm"
+                            required
+                        >{{ old('ticket_terms_text', $ticketTermsText) }}</textarea>
+                        <p class="text-xs font-normal text-slate-500">This text appears beside the required checkbox in the ticket form.</p>
+                        @error('ticket_terms_text')
+                            <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                        @enderror
+                    </label>
+                </article>
+
+                <article class="panel rounded-2xl border bg-white p-4">
                     <h2 class="text-lg font-bold">Ticket Request Form Builder</h2>
                     <p class="mt-1 text-sm text-slate-600">Configure built-in and custom fields for each requester type.</p>
 
