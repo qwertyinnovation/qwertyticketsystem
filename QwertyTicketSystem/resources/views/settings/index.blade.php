@@ -105,18 +105,18 @@
 
                 <article class="panel rounded-2xl border bg-white p-4">
                     <h2 class="text-lg font-bold">Terms and Conditions</h2>
-                    <p class="mt-1 text-sm text-slate-600">Choose which project statuses require a terms checkbox and customize the message shown in the ticket form.</p>
+                    <p class="mt-1 text-sm text-slate-600">Choose which project service types require a terms checkbox and customize the message shown in the ticket form.</p>
 
                     <label class="mt-3 grid gap-2 text-sm font-semibold">
-                        Statuses Requiring Terms Acceptance
+                        Service Types Requiring Terms Acceptance
                         <textarea
-                            name="ticket_terms_trigger_statuses"
+                            name="ticket_terms_trigger_service_types"
                             rows="4"
                             class="rounded-lg px-3 py-2 text-sm"
                             placeholder="On Call&#10;Billable Support&#10;Emergency Visit"
-                        >{{ old('ticket_terms_trigger_statuses', implode("\n", $ticketTermsTriggerStatuses)) }}</textarea>
-                        <p class="text-xs font-normal text-slate-500">One project status per line. When a project uses one of these statuses, users must accept the terms before submitting a ticket.</p>
-                        @error('ticket_terms_trigger_statuses')
+                        >{{ old('ticket_terms_trigger_service_types', implode("\n", $ticketTermsTriggerServiceTypes)) }}</textarea>
+                        <p class="text-xs font-normal text-slate-500">One project service type per line. When a project uses one of these service types, users must accept the terms before submitting a ticket.</p>
+                        @error('ticket_terms_trigger_service_types')
                             <span class="text-xs font-medium text-red-600">{{ $message }}</span>
                         @enderror
                     </label>

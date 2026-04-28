@@ -117,6 +117,11 @@ class Project extends Model
             ->orderBy('id');
     }
 
+    public function chatReads(): HasMany
+    {
+        return $this->hasMany(ProjectChatRead::class);
+    }
+
     public function latestMessage(): HasOne
     {
         return $this->hasOne(ProjectMessage::class)->latestOfMany();
@@ -167,14 +172,14 @@ class Project extends Model
 
     public function requiresTicketTermsAcceptance(): bool
     {
-        $status = self::normalizeComparisonValue($this->status);
+        $serviceType = self::normalizeComparisonValue($this->service_type);
 
-        if ($status === '') {
+        if ($serviceType === '') {
             return false;
         }
 
-        foreach (ServiceDeskSetting::ticketTermsTriggerStatuses() as $triggerStatus) {
-            if ($status === self::normalizeComparisonValue($triggerStatus)) {
+        foreach (ServiceDeskSetting::ticketTermsTriggerServiceTypes() as $triggerServiceType) {
+            if ($serviceType === self::normalizeComparisonValue($triggerServiceType)) {
                 return true;
             }
         }

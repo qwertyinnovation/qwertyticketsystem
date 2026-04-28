@@ -72,7 +72,7 @@ class ServiceTicketPublicController extends Controller
         }
 
         $validated = $request->validate($rules);
-        $this->validateOnCallTerms($request, $publicLink->project);
+        $this->validateTicketTerms($request, $publicLink->project);
         $customFieldValues = $this->extractCustomFieldValues($validated, $schema, $fieldDefinitions);
 
         $ticket = DB::transaction(function () use ($publicLink, $validated, $schema, $request, $customFieldValues): ?ServiceTicket {
@@ -320,7 +320,7 @@ class ServiceTicketPublicController extends Controller
         return is_string($value) ? $value : null;
     }
 
-    private function validateOnCallTerms(Request $request, ?Project $project): void
+    private function validateTicketTerms(Request $request, ?Project $project): void
     {
         if (! $project instanceof Project || ! $project->requiresTicketTermsAcceptance()) {
             return;

@@ -2,8 +2,9 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\GeneralChatController;
 use App\Http\Controllers\ProjectChatController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ServiceTicketController;
 use App\Http\Controllers\ServiceTicketPublicController;
 use App\Http\Controllers\SettingsController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\UserManagementController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/', [LoginController::class, 'create'])->name('login');
@@ -26,7 +28,7 @@ Route::get('/error-preview/{code}', function (Request $request, int $code) {
     }
 
     return response()->view("errors.{$code}", [
-        'exception' => new \Symfony\Component\HttpKernel\Exception\HttpException($code),
+        'exception' => new HttpException($code),
     ], $code);
 })->whereNumber('code')->name('errors.preview');
 
@@ -45,7 +47,18 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('permission:'.User::PERMISSION_VIEW_DASHBOARD)
         ->group(function (): void {
             Route::get('/', [ProjectChatController::class, 'index'])->name('project-chat.index');
+            Route::get('/general', [GeneralChatController::class, 'show'])->name('general-chat.show');
+            Route::post('/general/join-request', [GeneralChatController::class, 'requestJoin'])->name('general-chat.request');
+            Route::post('/general/read', [GeneralChatController::class, 'markRead'])->name('general-chat.read');
+            Route::post('/general/messages', [GeneralChatController::class, 'store'])->name('general-chat.store');
+            Route::put('/general/messages/{generalChatMessage}', [GeneralChatController::class, 'update'])->name('general-chat.update');
+            Route::delete('/general/messages/{generalChatMessage}', [GeneralChatController::class, 'destroy'])->name('general-chat.destroy');
+            Route::post('/general/members/invite', [GeneralChatController::class, 'invite'])->name('general-chat.members.invite');
+            Route::put('/general/members/{generalChatMember}/approve', [GeneralChatController::class, 'approve'])->name('general-chat.members.approve');
+            Route::put('/general/members/{generalChatMember}/reject', [GeneralChatController::class, 'reject'])->name('general-chat.members.reject');
+            Route::put('/general/members/{generalChatMember}/kick', [GeneralChatController::class, 'kick'])->name('general-chat.members.kick');
             Route::get('/projects/{project}', [ProjectChatController::class, 'show'])->name('project-chat.show');
+            Route::post('/projects/{project}/read', [ProjectChatController::class, 'markRead'])->name('project-chat.read');
             Route::post('/projects/{project}/messages', [ProjectChatController::class, 'store'])->name('project-chat.store');
             Route::put('/projects/{project}/messages/{projectMessage}', [ProjectChatController::class, 'update'])->name('project-chat.update');
             Route::delete('/projects/{project}/messages/{projectMessage}', [ProjectChatController::class, 'destroy'])->name('project-chat.destroy');

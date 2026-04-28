@@ -20,6 +20,9 @@
                                 <p class="mt-1 text-sm text-slate-500">
                                     {{ $participants->count() }} members • {{ $messages->count() }} {{ \Illuminate\Support\Str::plural('message', $messages->count()) }}
                                 </p>
+                                <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-600" data-project-chat-online-count>
+                                    Checking room presence...
+                                </p>
                             </div>
                         </div>
                         <a
@@ -30,12 +33,24 @@
                         </a>
                     </div>
                     <div class="messenger-thread-wrap">
-                        <div class="project-chat-thread messenger-thread" data-project-chat-thread>
+                        <div
+                            class="project-chat-thread messenger-thread"
+                            data-project-chat-thread
+                            data-project-id="{{ $project->id }}"
+                            data-current-user-id="{{ $currentUser->id }}"
+                            data-current-user-name="{{ $currentUser->name }}"
+                            data-current-user-role="{{ $currentUser->role }}"
+                            data-can-manage-all-messages="false"
+                            data-show-url="{{ route('project-chat.show', $project) }}"
+                            data-read-url="{{ route('project-chat.read', $project) }}"
+                            data-update-template="{{ route('project-chat.update', [$project, '__MESSAGE__']) }}"
+                            data-delete-template="{{ route('project-chat.destroy', [$project, '__MESSAGE__']) }}"
+                            data-role-labels='@json($roleLabels)'
+                        >
                             @forelse ($messages as $message)
                                 @php
                                     $isCurrentUser = (int) ($message->user_id ?? 0) === (int) ($currentUser->id ?? 0);
-                                    $canManageMessage = $isCurrentUser || in_array($currentUser->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_PM], true);
-                                    $isEditingMessage = (int) ($editingMessageId ?? 0) === (int) $message->id;
+                                    $canManageMessage = $isCurrentUser;
                                     $messageInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($message->author?->name ?? 'U', 0, 1));
                                 @endphp
                                 <article id="message-{{ $message->id }}" class="messenger-message {{ $isCurrentUser ? 'is-current-user' : 'is-remote-user' }}">
@@ -57,12 +72,13 @@
                                         @if ($canManageMessage)
                                             <div class="messenger-message-actions">
                                                 <a
-                                                    href="{{ route('project-chat.show', ['project' => $project, 'edit_message' => $message->id]) }}#message-{{ $message->id }}"
+                                                    href="#message-{{ $message->id }}"
                                                     class="messenger-message-action"
+                                                    data-project-chat-edit
                                                 >
                                                     Edit
                                                 </a>
-                                                <form method="POST" action="{{ route('project-chat.destroy', [$project, $message]) }}">
+                                                <form method="POST" action="{{ route('project-chat.destroy', [$project, $message]) }}" data-project-chat-delete-form>
                                                     @csrf
                                                     @method('DELETE')
                                                     <button
@@ -74,36 +90,6 @@
                                                     </button>
                                                 </form>
                                             </div>
-                                        @endif
-
-                                        @if ($isEditingMessage)
-                                            <form method="POST" action="{{ route('project-chat.update', [$project, $message]) }}" class="messenger-edit-form">
-                                                @csrf
-                                                @method('PUT')
-                                                <input type="hidden" name="editing_message_id" value="{{ $message->id }}" />
-                                                <label class="sr-only" for="editMessage{{ $message->id }}">Edit message</label>
-                                                <textarea
-                                                    id="editMessage{{ $message->id }}"
-                                                    name="update_message"
-                                                    rows="3"
-                                                    class="messenger-edit-input"
-                                                    required
-                                                >{{ old('update_message', $message->message) }}</textarea>
-                                                <div class="messenger-edit-actions">
-                                                    <button type="submit" class="btn messenger-send-button inline-flex rounded-full px-4 py-2 text-sm font-bold text-white">
-                                                        Save
-                                                    </button>
-                                                    <a
-                                                        href="{{ route('project-chat.show', $project) }}#message-{{ $message->id }}"
-                                                        class="btn messenger-project-link inline-flex rounded-full px-3 py-2 text-sm font-bold"
-                                                    >
-                                                        Cancel
-                                                    </a>
-                                                </div>
-                                                @error('update_message')
-                                                    <span class="text-xs font-medium text-red-600">{{ $message }}</span>
-                                                @enderror
-                                            </form>
                                         @endif
                                     </div>
 
@@ -141,6 +127,11 @@
                                 required
                             >{{ old('message') }}</textarea>
 
+                            <div class="hidden items-center gap-2 text-xs font-semibold text-cyan-700" data-project-chat-editing-banner>
+                                <span data-project-chat-editing-label>Editing message</span>
+                                <button type="button" class="messenger-message-action" data-project-chat-editing-cancel>Cancel edit</button>
+                            </div>
+
                             <div class="flex items-center gap-2">
                                 @if ($currentUser->hasPermission(\App\Models\User::PERMISSION_MANAGE_PROJECTS))
                                     <a
@@ -151,13 +142,17 @@
                                     </a>
                                 @endif
                                 <button type="submit" class="btn messenger-send-button inline-flex rounded-full px-4 py-3 text-sm font-bold text-white">
-                                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                                    <span>Send</span>
+                                    <i class="fa-solid fa-paper-plane" aria-hidden="true" data-project-chat-submit-icon></i>
+                                    <span data-project-chat-submit-label>Send</span>
                                 </button>
                             </div>
 
+                            <span class="text-xs font-medium text-slate-500" data-project-chat-typing-indicator></span>
+
                             @error('message')
-                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                                <span class="text-xs font-medium text-red-600" data-project-chat-error>{{ $message }}</span>
+                            @else
+                                <span class="hidden text-xs font-medium text-red-600" data-project-chat-error></span>
                             @enderror
                         </form>
                     </div>
@@ -175,10 +170,13 @@
                             @php
                                 $participantInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($participant->name, 0, 1));
                             @endphp
-                            <div class="messenger-member-card">
+                            <div class="messenger-member-card" data-project-chat-participant="{{ $participant->id }}">
                                 <div class="messenger-member-avatar">{{ $participantInitial }}</div>
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-bold text-slate-900">{{ $participant->name }}</p>
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-slate-300" data-project-chat-presence-dot></span>
+                                        <p class="truncate text-sm font-bold text-slate-900">{{ $participant->name }}</p>
+                                    </div>
                                     <p class="mt-1 text-xs uppercase tracking-wide text-slate-500">
                                         {{ $roleLabels[$participant->role] ?? ucfirst($participant->role) }}
                                         @if (in_array($participant->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_PM], true))
@@ -187,6 +185,7 @@
                                             • Assigned
                                         @endif
                                     </p>
+                                    <p class="mt-1 text-xs font-semibold text-slate-500" data-project-chat-presence-label>Offline</p>
                                     <p class="mt-1 truncate text-xs text-slate-500">{{ $participant->email }}</p>
                                 </div>
                             </div>

@@ -763,6 +763,12 @@ textarea:focus {
     border-top-right-radius: 0.45rem;
 }
 
+.messenger-message.is-editing .messenger-bubble {
+    box-shadow:
+        0 0 0 3px rgba(14, 165, 233, 0.18),
+        0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
 .messenger-empty-state {
     min-height: 16rem;
     display: grid;
@@ -846,40 +852,6 @@ textarea:focus {
 
 .messenger-message-action-danger:hover {
     color: #dc2626;
-}
-
-.messenger-edit-form {
-    display: grid;
-    gap: 0.7rem;
-    margin-top: 0.75rem;
-    padding: 0.85rem;
-    border: 1px solid #bfdbfe;
-    border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.92);
-}
-
-.messenger-edit-input {
-    width: 100%;
-    resize: vertical;
-    border: 1px solid #bfdbfe;
-    border-radius: 0.95rem;
-    background: #fff;
-    padding: 0.8rem 0.9rem;
-    color: #0f172a;
-    font-size: 0.92rem;
-    line-height: 1.5;
-}
-
-.messenger-edit-input:focus {
-    outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.16);
-}
-
-.messenger-edit-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.55rem;
 }
 
 .messenger-project-link {

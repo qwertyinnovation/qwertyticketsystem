@@ -2,10 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Events\ProjectMessageCreated;
+use App\Events\ProjectMessageDeleted;
+use App\Events\ProjectMessageUpdated;
 use App\Models\Project;
+use App\Models\ProjectChatRead;
 use App\Models\ProjectMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class ProjectChatAccessTest extends TestCase
@@ -82,6 +87,31 @@ class ProjectChatAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_assigned_user_can_send_chat_message_over_json_without_page_reload(): void
+    {
+        Event::fake([ProjectMessageCreated::class]);
+
+        $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
+        $project = $this->createProject('Real Time Chat Project');
+        $project->assignedUsers()->sync([$internalUser->id]);
+
+        $this->actingAs($internalUser)
+            ->postJson(route('project-chat.store', $project), [
+                'message' => 'Real-time chat update.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('message.project_id', $project->id)
+            ->assertJsonPath('message.user_id', $internalUser->id)
+            ->assertJsonPath('message.message', 'Real-time chat update.')
+            ->assertJsonPath('message.author_name', $internalUser->name);
+
+        Event::assertDispatched(ProjectMessageCreated::class, function (ProjectMessageCreated $event) use ($project, $internalUser): bool {
+            return (int) $event->projectMessage->project_id === (int) $project->id
+                && (int) $event->projectMessage->user_id === (int) $internalUser->id
+                && $event->projectMessage->message === 'Real-time chat update.';
+        });
+    }
+
     public function test_message_author_can_edit_and_delete_own_project_chat_message(): void
     {
         $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
@@ -115,7 +145,163 @@ class ProjectChatAccessTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_edit_and_delete_other_users_project_chat_messages(): void
+    public function test_message_author_can_update_chat_message_over_json_without_page_reload(): void
+    {
+        Event::fake([ProjectMessageUpdated::class]);
+
+        $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
+        $project = $this->createProject('Editable Real Time Chat Project');
+        $project->assignedUsers()->sync([$internalUser->id]);
+
+        $message = ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $internalUser->id,
+            'message' => 'Draft message.',
+        ]);
+
+        $this->actingAs($internalUser)
+            ->putJson(route('project-chat.update', [$project, $message]), [
+                'editing_message_id' => $message->id,
+                'update_message' => 'Updated live message.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('message.id', $message->id)
+            ->assertJsonPath('message.message', 'Updated live message.');
+
+        Event::assertDispatched(ProjectMessageUpdated::class, function (ProjectMessageUpdated $event) use ($message): bool {
+            return (int) $event->projectMessage->id === (int) $message->id
+                && $event->projectMessage->message === 'Updated live message.';
+        });
+    }
+
+    public function test_message_author_can_delete_chat_message_over_json_without_page_reload(): void
+    {
+        Event::fake([ProjectMessageDeleted::class]);
+
+        $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
+        $project = $this->createProject('Delete Real Time Chat Project');
+        $project->assignedUsers()->sync([$internalUser->id]);
+
+        $message = ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $internalUser->id,
+            'message' => 'Delete me.',
+        ]);
+
+        $this->actingAs($internalUser)
+            ->deleteJson(route('project-chat.destroy', [$project, $message]))
+            ->assertOk()
+            ->assertJsonPath('message_id', $message->id);
+
+        Event::assertDispatched(ProjectMessageDeleted::class, function (ProjectMessageDeleted $event) use ($message, $project): bool {
+            return $event->messageId === (int) $message->id
+                && $event->projectId === (int) $project->id;
+        });
+    }
+
+    public function test_chat_lobby_shows_unread_badge_for_messages_from_other_users(): void
+    {
+        $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
+        $projectManager = $this->userWithRole(User::ROLE_PM);
+        $project = $this->createProject('Unread Badge Project');
+        $project->assignedUsers()->sync([$internalUser->id]);
+
+        ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $projectManager->id,
+            'message' => 'First unread message.',
+        ]);
+
+        ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $internalUser->id,
+            'message' => 'My own message should not count as unread.',
+        ]);
+
+        ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $projectManager->id,
+            'message' => 'Second unread message.',
+        ]);
+
+        $this->actingAs($internalUser)
+            ->get(route('project-chat.index'))
+            ->assertOk()
+            ->assertSeeText('Unread Badge Project')
+            ->assertSeeText('2 unread');
+    }
+
+    public function test_opening_project_chat_room_marks_latest_message_as_read(): void
+    {
+        $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
+        $projectManager = $this->userWithRole(User::ROLE_PM);
+        $project = $this->createProject('Read Sync Project');
+        $project->assignedUsers()->sync([$internalUser->id]);
+
+        ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $projectManager->id,
+            'message' => 'Older unread message.',
+        ]);
+
+        $latestMessage = ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $projectManager->id,
+            'message' => 'Latest unread message.',
+        ]);
+
+        $this->actingAs($internalUser)
+            ->get(route('project-chat.show', $project))
+            ->assertOk();
+
+        $this->assertDatabaseHas('project_chat_reads', [
+            'project_id' => $project->id,
+            'user_id' => $internalUser->id,
+            'last_read_message_id' => $latestMessage->id,
+        ]);
+    }
+
+    public function test_assigned_user_can_mark_project_chat_messages_as_read_over_json(): void
+    {
+        $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
+        $projectManager = $this->userWithRole(User::ROLE_PM);
+        $project = $this->createProject('Read Endpoint Project');
+        $project->assignedUsers()->sync([$internalUser->id]);
+
+        $firstMessage = ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $projectManager->id,
+            'message' => 'First message.',
+        ]);
+
+        $latestMessage = ProjectMessage::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $projectManager->id,
+            'message' => 'Latest message.',
+        ]);
+
+        ProjectChatRead::query()->create([
+            'project_id' => $project->id,
+            'user_id' => $internalUser->id,
+            'last_read_message_id' => $firstMessage->id,
+            'read_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($internalUser)
+            ->postJson(route('project-chat.read', $project), [
+                'message_id' => $latestMessage->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('read_message_id', $latestMessage->id);
+
+        $this->assertDatabaseHas('project_chat_reads', [
+            'project_id' => $project->id,
+            'user_id' => $internalUser->id,
+            'last_read_message_id' => $latestMessage->id,
+        ]);
+    }
+
+    public function test_only_project_message_author_can_edit_and_delete_project_chat_message(): void
     {
         $adminUser = $this->userWithRole(User::ROLE_ADMIN);
         $internalUser = $this->userWithRole(User::ROLE_INTERNAL);
@@ -133,14 +319,30 @@ class ProjectChatAccessTest extends TestCase
                 'editing_message_id' => $message->id,
                 'update_message' => 'Admin updated this message.',
             ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('project_messages', [
+            'id' => $message->id,
+            'message' => 'Please moderate this.',
+        ]);
+
+        $this->actingAs($adminUser)
+            ->delete(route('project-chat.destroy', [$project, $message]))
+            ->assertForbidden();
+
+        $this->actingAs($internalUser)
+            ->put(route('project-chat.update', [$project, $message]), [
+                'editing_message_id' => $message->id,
+                'update_message' => 'Author updated this message.',
+            ])
             ->assertRedirect(route('project-chat.show', $project).'#message-'.$message->id);
 
         $this->assertDatabaseHas('project_messages', [
             'id' => $message->id,
-            'message' => 'Admin updated this message.',
+            'message' => 'Author updated this message.',
         ]);
 
-        $this->actingAs($adminUser)
+        $this->actingAs($internalUser)
             ->delete(route('project-chat.destroy', [$project, $message]))
             ->assertRedirect(route('project-chat.show', $project));
 

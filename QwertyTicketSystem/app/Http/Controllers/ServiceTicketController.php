@@ -292,7 +292,7 @@ class ServiceTicketController extends Controller
 
         $validated = $request->validate($rules);
         $project = Project::query()->findOrFail((int) $validated['project_id']);
-        $this->validateOnCallTerms($request, $project);
+        $this->validateTicketTerms($request, $project);
         $customFieldValues = $this->extractCustomFieldValues($validated, $schema, $fieldDefinitions);
 
         /** @var ServiceTicket $ticket */
@@ -629,7 +629,7 @@ class ServiceTicketController extends Controller
         return is_string($value) ? $value : null;
     }
 
-    private function validateOnCallTerms(Request $request, Project $project): void
+    private function validateTicketTerms(Request $request, Project $project): void
     {
         if (! $project->requiresTicketTermsAcceptance()) {
             return;

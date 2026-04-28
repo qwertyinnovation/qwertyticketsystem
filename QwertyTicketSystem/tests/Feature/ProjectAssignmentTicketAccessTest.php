@@ -238,7 +238,7 @@ class ProjectAssignmentTicketAccessTest extends TestCase
     public function test_on_call_project_ticket_submission_requires_terms_acceptance(): void
     {
         $clientUser = $this->userWithRole(User::ROLE_CLIENT);
-        $project = $this->createProject('On Call Project', null, 'On Call');
+        $project = $this->createProject('On Call Project', 'On Call', Project::DEFAULT_STATUSES[0]);
         $project->assignedUsers()->sync([$clientUser->id]);
 
         $this->actingAs($clientUser)
@@ -274,6 +274,28 @@ class ProjectAssignmentTicketAccessTest extends TestCase
             'project_id' => $project->id,
             'submitted_by_user_id' => $clientUser->id,
             'title' => 'On Call Ticket',
+        ]);
+    }
+
+    public function test_on_call_status_alone_does_not_require_terms_acceptance(): void
+    {
+        $clientUser = $this->userWithRole(User::ROLE_CLIENT);
+        $project = $this->createProject('Status Only On Call Project', Project::DEFAULT_SERVICE_TYPES[0], 'On Call');
+        $project->assignedUsers()->sync([$clientUser->id]);
+
+        $this->actingAs($clientUser)
+            ->from(route('service-tickets.create'))
+            ->post(route('service-tickets.store'), [
+                'project_id' => $project->id,
+                'title' => 'Status Only Ticket',
+                'description' => 'Status should not trigger terms.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('service_tickets', [
+            'project_id' => $project->id,
+            'submitted_by_user_id' => $clientUser->id,
+            'title' => 'Status Only Ticket',
         ]);
     }
 

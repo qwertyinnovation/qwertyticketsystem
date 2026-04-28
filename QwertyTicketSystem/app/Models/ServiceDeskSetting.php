@@ -11,7 +11,7 @@ class ServiceDeskSetting extends Model
     public const KEY_TICKET_CUSTOM_FIELDS = 'ticket_custom_fields';
     public const KEY_PUBLIC_LINK_EXPIRY_MINUTES = 'public_link_expiry_minutes';
     public const KEY_TICKET_TERMS_TEXT = 'ticket_terms_text';
-    public const KEY_TICKET_TERMS_TRIGGER_STATUSES = 'ticket_terms_trigger_statuses';
+    public const KEY_TICKET_TERMS_TRIGGER_SERVICE_TYPES = 'ticket_terms_trigger_service_types';
 
     protected $fillable = [
         'key',
@@ -154,29 +154,29 @@ class ServiceDeskSetting extends Model
     /**
      * @return array<int, string>
      */
-    public static function ticketTermsTriggerStatuses(): array
+    public static function ticketTermsTriggerServiceTypes(): array
     {
-        $stored = self::valueByKey(self::KEY_TICKET_TERMS_TRIGGER_STATUSES);
+        $stored = self::valueByKey(self::KEY_TICKET_TERMS_TRIGGER_SERVICE_TYPES);
 
-        if (! is_array($stored['statuses'] ?? null)) {
-            return self::defaultTicketTermsTriggerStatuses();
+        if (! is_array($stored['service_types'] ?? null)) {
+            return self::defaultTicketTermsTriggerServiceTypes();
         }
 
-        /** @var array<int, mixed> $statuses */
-        $statuses = $stored['statuses'];
-        $normalized = self::normalizeStringList($statuses, []);
+        /** @var array<int, mixed> $serviceTypes */
+        $serviceTypes = $stored['service_types'];
+        $normalized = self::normalizeStringList($serviceTypes, []);
 
         return $normalized !== [] ? $normalized : [];
     }
 
     /**
-     * @param  array<int, string>  $statuses
+     * @param  array<int, string>  $serviceTypes
      */
-    public static function updateTicketTermsTriggerStatuses(array $statuses): void
+    public static function updateTicketTermsTriggerServiceTypes(array $serviceTypes): void
     {
         self::query()->updateOrCreate(
-            ['key' => self::KEY_TICKET_TERMS_TRIGGER_STATUSES],
-            ['value' => ['statuses' => self::normalizeStringList($statuses, [])]]
+            ['key' => self::KEY_TICKET_TERMS_TRIGGER_SERVICE_TYPES],
+            ['value' => ['service_types' => self::normalizeStringList($serviceTypes, [])]]
         );
     }
 
@@ -331,7 +331,7 @@ class ServiceDeskSetting extends Model
     /**
      * @return array<int, string>
      */
-    public static function defaultTicketTermsTriggerStatuses(): array
+    public static function defaultTicketTermsTriggerServiceTypes(): array
     {
         return ['On Call'];
     }

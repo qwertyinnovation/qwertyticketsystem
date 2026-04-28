@@ -83,9 +83,9 @@ class ServiceTicketPublicTrackingTest extends TestCase
         $project = Project::query()->create([
             'name' => 'On Call Public Project',
             'category' => Project::DEFAULT_CATEGORIES[0],
-            'service_type' => Project::DEFAULT_SERVICE_TYPES[0],
+            'service_type' => 'On Call',
             'priority' => Project::DEFAULT_PRIORITIES[0],
-            'status' => 'On Call',
+            'status' => Project::DEFAULT_STATUSES[0],
             'description' => 'Public on-call tracking project',
         ]);
 
