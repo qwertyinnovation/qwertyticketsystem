@@ -67,13 +67,19 @@ Route::middleware('auth')->group(function (): void {
     Route::prefix('users')
         ->middleware('permission:'.User::PERMISSION_MANAGE_USERS)
         ->group(function (): void {
+            $missingUser = function () {
+                return redirect()
+                    ->route('users.index')
+                    ->withErrors(['user' => 'The selected user could not be found. It may have been deleted.']);
+            };
+
             Route::get('/', [UserManagementController::class, 'index'])->name('users.index');
             Route::get('/create', [UserManagementController::class, 'create'])->name('users.create');
             Route::post('/', [UserManagementController::class, 'store'])->name('users.store');
-            Route::get('/{user}', [UserManagementController::class, 'show'])->name('users.show');
-            Route::get('/{user}/edit', [UserManagementController::class, 'edit'])->name('users.edit');
-            Route::put('/{user}', [UserManagementController::class, 'update'])->name('users.update');
-            Route::delete('/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
+            Route::get('/{user}', [UserManagementController::class, 'show'])->missing($missingUser)->name('users.show');
+            Route::get('/{user}/edit', [UserManagementController::class, 'edit'])->missing($missingUser)->name('users.edit');
+            Route::put('/{user}', [UserManagementController::class, 'update'])->missing($missingUser)->name('users.update');
+            Route::delete('/{user}', [UserManagementController::class, 'destroy'])->missing($missingUser)->name('users.destroy');
         });
 
     Route::prefix('projects')
