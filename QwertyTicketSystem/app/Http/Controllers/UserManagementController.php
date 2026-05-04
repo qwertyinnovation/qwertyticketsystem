@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -128,5 +129,25 @@ class UserManagementController extends Controller
         $user->delete();
 
         return back()->with('status', 'User deleted.');
+    }
+
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'selected_ids' => ['required', 'array', 'min:1'],
+            'selected_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+        ]);
+
+        $selectedIds = array_map('intval', $validated['selected_ids']);
+
+        if (in_array((int) $request->user()->id, $selectedIds, true)) {
+            return back()->withErrors(['user' => 'You cannot delete your own account.']);
+        }
+
+        $deletedCount = User::query()
+            ->whereIn('id', $selectedIds)
+            ->delete();
+
+        return back()->with('status', $deletedCount.' '.Str::plural('user', $deletedCount).' deleted.');
     }
 }

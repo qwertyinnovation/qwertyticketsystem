@@ -76,6 +76,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/', [UserManagementController::class, 'index'])->name('users.index');
             Route::get('/create', [UserManagementController::class, 'create'])->name('users.create');
             Route::post('/', [UserManagementController::class, 'store'])->name('users.store');
+            Route::delete('/bulk', [UserManagementController::class, 'bulkDestroy'])->name('users.bulk-destroy');
             Route::get('/{user}', [UserManagementController::class, 'show'])->missing($missingUser)->name('users.show');
             Route::get('/{user}/edit', [UserManagementController::class, 'edit'])->missing($missingUser)->name('users.edit');
             Route::put('/{user}', [UserManagementController::class, 'update'])->missing($missingUser)->name('users.update');
@@ -88,6 +89,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('/create', [ProjectController::class, 'create'])->name('projects.create');
             Route::post('/', [ProjectController::class, 'store'])->name('projects.store');
+            Route::delete('/bulk', [ProjectController::class, 'bulkDestroy'])->name('projects.bulk-destroy');
             Route::get('/{project}', [ProjectController::class, 'show'])->name('projects.show');
             Route::get('/{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
             Route::put('/{project}', [ProjectController::class, 'update'])->name('projects.update');
@@ -106,6 +108,10 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/public-links', [ServiceTicketController::class, 'storePublicLink'])
                 ->middleware('permission:'.User::PERMISSION_GENERATE_LINKS)
                 ->name('service-tickets.public-links.store');
+            Route::delete('/public-links/bulk', [ServiceTicketController::class, 'bulkDestroyPublicLinks'])
+                ->middleware('permission:'.User::PERMISSION_GENERATE_LINKS)
+                ->name('service-tickets.public-links.bulk-destroy');
+            Route::delete('/bulk', [ServiceTicketController::class, 'bulkDestroy'])->name('service-tickets.bulk-destroy');
             Route::get('/{serviceTicket}', [ServiceTicketController::class, 'show'])->name('service-tickets.show');
             Route::put('/{serviceTicket}/response', [ServiceTicketController::class, 'updateResponse'])->name('service-tickets.response.update');
             Route::delete('/{serviceTicket}', [ServiceTicketController::class, 'destroy'])->name('service-tickets.destroy');

@@ -78,24 +78,42 @@
 
             <article class="panel rounded-2xl border bg-white p-4">
                 <h2 class="text-lg font-bold">Your Active Links</h2>
-                <div class="mt-2 space-y-2">
-                    @forelse ($activePublicLinks as $activeLink)
-                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                            <p class="text-xs font-semibold text-slate-700">
-                                {{ $activeLink->project?->name ?? 'Unknown Project' }} •
-                                {{ $requesterRoles[$activeLink->requester_role] ?? ucfirst($activeLink->requester_role) }}
-                            </p>
-                            <p class="mt-1 text-xs text-slate-500">
-                                Expires: {{ $activeLink->expires_at?->format('Y-m-d H:i') }}
-                            </p>
-                            <a href="{{ route('service-tickets.public.create', $activeLink) }}" target="_blank" rel="noreferrer" class="mt-1 inline-flex text-xs font-semibold text-cyan-700 underline">
-                                Open Link
-                            </a>
-                        </div>
-                    @empty
-                        <p class="text-sm text-slate-500">No active one-time links yet.</p>
-                    @endforelse
-                </div>
+                <form method="POST" action="{{ route('service-tickets.public-links.bulk-destroy') }}" class="mt-2" data-bulk-delete-form data-bulk-confirm="Delete selected one-time links?">
+                    @csrf
+                    @method('DELETE')
+
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <label class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.06em] text-slate-500">
+                            <input type="checkbox" class="rounded" data-bulk-select-all aria-label="Select all active one-time links" />
+                            <span data-bulk-selected-count>0 selected</span>
+                        </label>
+                        <button type="submit" class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50" data-bulk-submit disabled>
+                            Delete Selected
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        @forelse ($activePublicLinks as $activeLink)
+                            <div class="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                                <input type="checkbox" name="selected_ids[]" value="{{ $activeLink->id }}" class="mt-1 rounded" data-bulk-select-row aria-label="Select one-time link for {{ $activeLink->project?->name ?? 'unknown project' }}" />
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold text-slate-700">
+                                        {{ $activeLink->project?->name ?? 'Unknown Project' }} •
+                                        {{ $requesterRoles[$activeLink->requester_role] ?? ucfirst($activeLink->requester_role) }}
+                                    </p>
+                                    <p class="mt-1 text-xs text-slate-500">
+                                        Expires: {{ $activeLink->expires_at?->format('Y-m-d H:i') }}
+                                    </p>
+                                    <a href="{{ route('service-tickets.public.create', $activeLink) }}" target="_blank" rel="noreferrer" class="mt-1 inline-flex text-xs font-semibold text-cyan-700 underline">
+                                        Open Link
+                                    </a>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-slate-500">No active one-time links yet.</p>
+                        @endforelse
+                    </div>
+                </form>
             </article>
         </section>
     </div>

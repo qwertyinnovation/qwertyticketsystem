@@ -47,43 +47,69 @@
                     </div>
                 </form>
 
-                <div class="overflow-x-auto rounded-xl border border-slate-200">
-                    <table class="min-w-full border-collapse text-sm">
-                        <thead class="bg-slate-50 text-left">
-                            <tr>
-                                <th class="px-3 py-2 font-bold text-slate-700">Name</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Email</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Role</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Permissions</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($users as $managedUser)
-                                <tr class="border-t border-slate-100 bg-white">
-                                    <td class="px-3 py-2 font-semibold">{{ $managedUser->name }}</td>
-                                    <td class="px-3 py-2 text-slate-600">{{ $managedUser->email }}</td>
-                                    <td class="px-3 py-2">
-                                        <span class="badge rounded-full px-2 py-1 text-xs">{{ $roles[$managedUser->role] ?? ucfirst($managedUser->role) }}</span>
-                                    </td>
-                                    <td class="px-3 py-2 text-slate-600">
-                                        {{ $managedUser->role === \App\Models\User::ROLE_ADMIN ? 'All permissions' : count($managedUser->permissions ?? []) }}
-                                    </td>
-                                    <td class="px-3 py-2">
-                                        <div class="flex flex-wrap gap-2">
-                                            <a href="{{ route('users.show', $managedUser) }}" class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700">View Details</a>
-                                            <a href="{{ route('users.edit', $managedUser) }}" class="btn inline-flex rounded-lg border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">Edit</a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
+                <form method="POST" action="{{ route('users.bulk-destroy') }}" data-bulk-delete-form data-bulk-confirm="Delete selected users?">
+                    @csrf
+                    @method('DELETE')
+
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <span class="text-xs font-bold uppercase tracking-[0.06em] text-slate-500" data-bulk-selected-count>0 selected</span>
+                        <button type="submit" class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50" data-bulk-submit disabled>
+                            Delete Selected
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-full border-collapse text-sm">
+                            <thead class="bg-slate-50 text-left">
                                 <tr>
-                                    <td colspan="5" class="px-3 py-6 text-center text-slate-500">No users found.</td>
+                                    <th class="w-12 px-3 py-2">
+                                        <input type="checkbox" class="rounded" data-bulk-select-all aria-label="Select all users on this page" />
+                                    </th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Name</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Email</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Role</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Permissions</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Action</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                @forelse ($users as $managedUser)
+                                    <tr class="border-t border-slate-100 bg-white">
+                                        <td class="px-3 py-2">
+                                            <input
+                                                type="checkbox"
+                                                name="selected_ids[]"
+                                                value="{{ $managedUser->id }}"
+                                                class="rounded"
+                                                data-bulk-select-row
+                                                aria-label="Select {{ $managedUser->name }}"
+                                                @disabled((int) $currentUser->id === (int) $managedUser->id)
+                                            />
+                                        </td>
+                                        <td class="px-3 py-2 font-semibold">{{ $managedUser->name }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ $managedUser->email }}</td>
+                                        <td class="px-3 py-2">
+                                            <span class="badge rounded-full px-2 py-1 text-xs">{{ $roles[$managedUser->role] ?? ucfirst($managedUser->role) }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-slate-600">
+                                            {{ $managedUser->role === \App\Models\User::ROLE_ADMIN ? 'All permissions' : count($managedUser->permissions ?? []) }}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <div class="flex flex-wrap gap-2">
+                                                <a href="{{ route('users.show', $managedUser) }}" class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700">View Details</a>
+                                                <a href="{{ route('users.edit', $managedUser) }}" class="btn inline-flex rounded-lg border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">Edit</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-3 py-6 text-center text-slate-500">No users found.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
 
                 <div class="mt-3">
                     {{ $users->links() }}

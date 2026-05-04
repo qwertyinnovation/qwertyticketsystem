@@ -48,7 +48,7 @@
     <div class="mobile-service-desk-nav panel lg:hidden">
         <div class="mobile-service-desk-nav-bar">
             <div class="flex min-w-0 items-center gap-3">
-                <div class="h-4 w-4 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
+                <img src="{{ asset('images/qwerty-logo.svg') }}" alt="Qwerty Innovation" class="h-10 w-10 shrink-0 rounded-xl bg-white object-contain p-1 shadow-sm" />
                 <div class="min-w-0">
                     <p class="truncate text-base font-extrabold text-slate-900">Service Desk</p>
                     <p class="truncate text-xs text-slate-500">service.qwertyinnovation.com</p>
@@ -83,7 +83,7 @@
     >
         <div class="flex items-start justify-between gap-3">
             <div class="flex min-w-0 items-center gap-3">
-                <div class="h-4 w-4 shrink-0 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
+                <img src="{{ asset('images/qwerty-logo.svg') }}" alt="Qwerty Innovation" class="h-11 w-11 shrink-0 rounded-xl bg-white object-contain p-1 shadow-lg shadow-black/20" />
                 <div class="min-w-0">
                     <h1 class="truncate text-lg font-bold">Service Desk</h1>
                     <p class="truncate text-xs text-slate-300">service.qwertyinnovation.com</p>
@@ -133,7 +133,7 @@
 
     <aside class="sidebar panel hidden rounded-2xl border p-4 lg:sticky lg:top-4 lg:block lg:h-[calc(100vh-2rem)]">
         <div class="flex items-center gap-3">
-            <div class="h-4 w-4 rounded-full bg-gradient-to-br from-cyan-400 to-orange-500"></div>
+            <img src="{{ asset('images/qwerty-logo.svg') }}" alt="Qwerty Innovation" class="h-12 w-12 shrink-0 rounded-xl bg-white object-contain p-1.5 shadow-lg shadow-black/20" />
             <div>
                 <h1 class="text-lg font-bold">Service Desk</h1>
                 <p class="text-xs text-slate-300">service.qwertyinnovation.com</p>

@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Illuminate\Validation\Rule;
 
@@ -136,6 +137,26 @@ class ProjectController extends Controller
     {
         $project->delete();
         return redirect()->route('projects.index')->with('status', 'Project deleted.');
+    }
+
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'selected_ids' => ['required', 'array', 'min:1'],
+            'selected_ids.*' => ['integer', 'distinct', 'exists:projects,id'],
+        ]);
+
+        $projects = Project::query()
+            ->whereIn('id', array_map('intval', $validated['selected_ids']))
+            ->get();
+
+        foreach ($projects as $project) {
+            $project->delete();
+        }
+
+        $deletedCount = $projects->count();
+
+        return back()->with('status', $deletedCount.' '.Str::plural('project', $deletedCount).' deleted.');
     }
 
     /**

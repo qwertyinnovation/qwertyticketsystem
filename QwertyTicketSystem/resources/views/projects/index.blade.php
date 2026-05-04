@@ -77,43 +77,61 @@
                     </div>
                 </form>
 
-                <div class="overflow-x-auto rounded-xl border border-slate-200">
-                    <table class="min-w-full border-collapse text-sm">
-                        <thead class="bg-slate-50 text-left">
-                            <tr>
-                                <th class="px-3 py-2 font-bold text-slate-700">Name</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Category</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Service Type</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Priority</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Status</th>
-                                <th class="px-3 py-2 font-bold text-slate-700">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($projects as $project)
-                                <tr class="border-t border-slate-100 bg-white">
-                                    <td class="px-3 py-2 font-semibold">{{ $project->name }}</td>
-                                    <td class="px-3 py-2 text-slate-600">{{ $project->category }}</td>
-                                    <td class="px-3 py-2 text-slate-600">{{ $project->service_type }}</td>
-                                    <td class="px-3 py-2 text-slate-600">{{ $project->priority }}</td>
-                                    <td class="px-3 py-2">
-                                        <span class="badge rounded-full px-2 py-1 text-xs">{{ $project->status }}</span>
-                                    </td>
-                                    <td class="px-3 py-2">
-                                        <div class="flex flex-wrap gap-2">
-                                            <a href="{{ route('projects.show', $project) }}" class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700">View Details</a>
-                                            <a href="{{ route('projects.edit', $project) }}" class="btn inline-flex rounded-lg border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">Edit</a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
+                <form method="POST" action="{{ route('projects.bulk-destroy') }}" data-bulk-delete-form data-bulk-confirm="Delete selected projects? Related tickets and chat records will also be deleted.">
+                    @csrf
+                    @method('DELETE')
+
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <span class="text-xs font-bold uppercase tracking-[0.06em] text-slate-500" data-bulk-selected-count>0 selected</span>
+                        <button type="submit" class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50" data-bulk-submit disabled>
+                            Delete Selected
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-full border-collapse text-sm">
+                            <thead class="bg-slate-50 text-left">
                                 <tr>
-                                    <td colspan="6" class="px-3 py-6 text-center text-slate-500">No projects found.</td>
+                                    <th class="w-12 px-3 py-2">
+                                        <input type="checkbox" class="rounded" data-bulk-select-all aria-label="Select all projects on this page" />
+                                    </th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Name</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Category</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Service Type</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Priority</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Status</th>
+                                    <th class="px-3 py-2 font-bold text-slate-700">Action</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                @forelse ($projects as $project)
+                                    <tr class="border-t border-slate-100 bg-white">
+                                        <td class="px-3 py-2">
+                                            <input type="checkbox" name="selected_ids[]" value="{{ $project->id }}" class="rounded" data-bulk-select-row aria-label="Select {{ $project->name }}" />
+                                        </td>
+                                        <td class="px-3 py-2 font-semibold">{{ $project->name }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ $project->category }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ $project->service_type }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ $project->priority }}</td>
+                                        <td class="px-3 py-2">
+                                            <span class="badge rounded-full px-2 py-1 text-xs">{{ $project->status }}</span>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <div class="flex flex-wrap gap-2">
+                                                <a href="{{ route('projects.show', $project) }}" class="btn inline-flex rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700">View Details</a>
+                                                <a href="{{ route('projects.edit', $project) }}" class="btn inline-flex rounded-lg border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">Edit</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-3 py-6 text-center text-slate-500">No projects found.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
 
                 <div class="mt-3">
                     {{ $projects->links() }}

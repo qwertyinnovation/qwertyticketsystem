@@ -6,9 +6,12 @@
                 <div class="absolute -left-16 top-8 h-36 w-36 rounded-full bg-cyan-300/45 blur-3xl"></div>
                 <div class="absolute -right-10 bottom-2 h-40 w-40 rounded-full bg-sky-300/40 blur-3xl"></div>
 
-                <p class="relative text-xs font-extrabold uppercase tracking-[0.08em] text-cyan-700">
-                    Qwerty Support Platform
-                </p>
+                <div class="relative flex items-center gap-3">
+                    <img src="{{ asset('images/qwerty-logo.svg') }}" alt="Qwerty Innovation" class="h-16 w-16 rounded-2xl bg-white object-contain p-1 shadow-lg shadow-slate-200" />
+                    <p class="text-xs font-extrabold uppercase tracking-[0.08em] text-cyan-700">
+                        Qwerty Support Platform
+                    </p>
+                </div>
                 <h1 class="relative mt-3 text-3xl font-extrabold leading-tight text-slate-900 md:text-5xl">
                     Welcome back to your service desk
                 </h1>

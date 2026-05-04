@@ -1,6 +1,59 @@
 import './bootstrap';
 
 document.addEventListener('DOMContentLoaded', () => {
+    Array.from(document.querySelectorAll('[data-bulk-delete-form]')).forEach((form) => {
+        const selectAll = form.querySelector('[data-bulk-select-all]');
+        const rowCheckboxes = Array.from(form.querySelectorAll('[data-bulk-select-row]'))
+            .filter((checkbox) => checkbox instanceof HTMLInputElement);
+        const submitButton = form.querySelector('[data-bulk-submit]');
+        const selectedCount = form.querySelector('[data-bulk-selected-count]');
+        const confirmMessage = form.getAttribute('data-bulk-confirm') || 'Delete selected records?';
+
+        const enabledCheckboxes = rowCheckboxes.filter((checkbox) => !checkbox.disabled);
+
+        const syncBulkState = () => {
+            const checkedCount = enabledCheckboxes.filter((checkbox) => checkbox.checked).length;
+
+            if (submitButton instanceof HTMLButtonElement) {
+                submitButton.disabled = checkedCount === 0;
+            }
+
+            if (selectedCount instanceof HTMLElement) {
+                selectedCount.textContent = `${checkedCount} selected`;
+            }
+
+            if (selectAll instanceof HTMLInputElement) {
+                selectAll.checked = enabledCheckboxes.length > 0 && checkedCount === enabledCheckboxes.length;
+                selectAll.indeterminate = checkedCount > 0 && checkedCount < enabledCheckboxes.length;
+                selectAll.disabled = enabledCheckboxes.length === 0;
+            }
+        };
+
+        if (selectAll instanceof HTMLInputElement) {
+            selectAll.addEventListener('change', () => {
+                enabledCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = selectAll.checked;
+                });
+
+                syncBulkState();
+            });
+        }
+
+        enabledCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', syncBulkState);
+        });
+
+        form.addEventListener('submit', (event) => {
+            const checkedCount = enabledCheckboxes.filter((checkbox) => checkbox.checked).length;
+
+            if (checkedCount === 0 || !window.confirm(confirmMessage)) {
+                event.preventDefault();
+            }
+        });
+
+        syncBulkState();
+    });
+
     const navigationWrappers = Array.from(document.querySelectorAll('[data-service-desk-nav]'));
 
     navigationWrappers.forEach((wrapper) => {

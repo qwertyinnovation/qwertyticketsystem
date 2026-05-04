@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ $title ?? 'Error' }} | Qwerty Ticket System</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/qwerty-logo.svg') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,7 +19,8 @@
         <section class="panel grid w-full gap-6 overflow-hidden rounded-[28px] border p-6 sm:p-8 lg:grid-cols-[180px_minmax(0,1fr)] lg:p-10">
             <div class="flex flex-col justify-between gap-4 rounded-[24px] bg-slate-950 p-5 text-white">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">Qwerty Ticket System</p>
+                    <img src="{{ asset('images/qwerty-logo.svg') }}" alt="Qwerty Innovation" class="h-14 w-14 rounded-2xl bg-white object-contain p-1 shadow-lg shadow-black/20" />
+                    <p class="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">Qwerty Ticket System</p>
                     <p class="mt-3 text-5xl font-black tracking-tight text-white">{{ $statusCode ?? 'Error' }}</p>
                 </div>
                 <div class="rounded-2xl border border-white/12 bg-white/8 p-4 text-sm text-slate-100">

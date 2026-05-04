@@ -7,6 +7,7 @@ use App\Models\ServiceDeskSetting;
 use App\Models\ServiceTicket;
 use App\Models\ServiceTicketPhoto;
 use App\Models\ServiceTicketPublicLink;
+use App\Services\ServiceTicketNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use Illuminate\View\View;
 
 class ServiceTicketPublicController extends Controller
 {
+    public function __construct(private readonly ServiceTicketNotificationService $ticketNotifications)
+    {
+    }
+
     public function show(string $token): View|\Illuminate\Http\Response
     {
         $serviceTicket = ServiceTicket::query()
@@ -120,6 +125,8 @@ class ServiceTicketPublicController extends Controller
 
             return $this->invalidPublicLinkResponse($latestLink);
         }
+
+        $this->ticketNotifications->ticketCreated($ticket);
 
         return view('service-tickets.public-success', [
             'ticket' => $ticket,

@@ -9,16 +9,22 @@ use App\Models\ServiceTicketPhoto;
 use App\Models\ServiceTicketPublicLink;
 use App\Models\ServiceTicketResponse;
 use App\Models\User;
+use App\Services\ServiceTicketNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ServiceTicketController extends Controller
 {
+    public function __construct(private readonly ServiceTicketNotificationService $ticketNotifications)
+    {
+    }
+
     public function index(Request $request): View
     {
         /** @var User $user */
@@ -311,6 +317,8 @@ class ServiceTicketController extends Controller
             $this->storeTicketPhotos($ticket, $request->file('photos', []), $user->id);
         }
 
+        $this->ticketNotifications->ticketCreated($ticket, $user);
+
         return redirect()->route('service-tickets.show', $ticket)->with('status', 'Service ticket submitted.');
     }
 
@@ -354,11 +362,44 @@ class ServiceTicketController extends Controller
             ->with('generated_public_link', route('service-tickets.public.create', $publicLink));
     }
 
+    public function bulkDestroyPublicLinks(Request $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if (! $user->hasPermission(User::PERMISSION_GENERATE_LINKS)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'selected_ids' => ['required', 'array', 'min:1'],
+            'selected_ids.*' => ['integer', 'distinct', 'exists:service_ticket_public_links,id'],
+        ]);
+
+        $selectedIds = array_map('intval', $validated['selected_ids']);
+        $links = ServiceTicketPublicLink::query()
+            ->whereIn('id', $selectedIds)
+            ->get();
+
+        if ($links->count() !== count($selectedIds) || $links->contains(fn (ServiceTicketPublicLink $link): bool => (int) $link->created_by_user_id !== (int) $user->id)) {
+            abort(403);
+        }
+
+        foreach ($links as $link) {
+            $link->delete();
+        }
+
+        $deletedCount = $links->count();
+
+        return back()->with('status', $deletedCount.' '.Str::plural('one-time link', $deletedCount).' deleted.');
+    }
+
     public function updateResponse(Request $request, ServiceTicket $serviceTicket): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
         $this->assertCanManageTicket($user, $serviceTicket);
+        $previousStatus = $serviceTicket->status;
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(ServiceTicket::statuses())],
@@ -402,6 +443,14 @@ class ServiceTicketController extends Controller
         $serviceTicket->response_photo_path = $isImageAttachment ? $attachmentPath : null;
         $serviceTicket->save();
 
+        $serviceTicket->refresh();
+        $this->ticketNotifications->ticketResponded(
+            $serviceTicket,
+            $user,
+            $previousStatus,
+            $validated['response_message'] ?? null,
+        );
+
         return back()->with('status', 'Ticket response added.');
     }
 
@@ -415,6 +464,47 @@ class ServiceTicketController extends Controller
             abort(403);
         }
 
+        $this->deleteServiceTicketWithFiles($serviceTicket);
+        $this->ticketNotifications->ticketDeleted($serviceTicket, $user);
+
+        return redirect()->route('service-tickets.index')->with('status', 'Service ticket deleted.');
+    }
+
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'selected_ids' => ['required', 'array', 'min:1'],
+            'selected_ids.*' => ['integer', 'distinct', 'exists:service_tickets,id'],
+        ]);
+
+        $tickets = ServiceTicket::query()
+            ->whereIn('id', array_map('intval', $validated['selected_ids']))
+            ->with(['photos', 'responses'])
+            ->get();
+
+        foreach ($tickets as $ticket) {
+            $this->assertCanViewTicket($user, $ticket);
+
+            if (! $this->canManageAllTickets($user) && (int) $ticket->submitted_by_user_id !== (int) $user->id) {
+                abort(403);
+            }
+        }
+
+        foreach ($tickets as $ticket) {
+            $this->deleteServiceTicketWithFiles($ticket);
+            $this->ticketNotifications->ticketDeleted($ticket, $user);
+        }
+
+        $deletedCount = $tickets->count();
+
+        return back()->with('status', $deletedCount.' '.Str::plural('service ticket', $deletedCount).' deleted.');
+    }
+
+    private function deleteServiceTicketWithFiles(ServiceTicket $serviceTicket): void
+    {
         $serviceTicket->loadMissing(['photos', 'responses']);
 
         $photoPaths = $serviceTicket->photos
@@ -444,8 +534,6 @@ class ServiceTicketController extends Controller
         Storage::disk('public')->delete(array_values(array_unique($photoPaths)));
 
         $serviceTicket->delete();
-
-        return redirect()->route('service-tickets.index')->with('status', 'Service ticket deleted.');
     }
 
     /**
