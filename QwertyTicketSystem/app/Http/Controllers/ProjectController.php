@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Services\ProjectNotificationService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
+    public function __construct(private readonly ProjectNotificationService $projectNotifications)
+    {
+    }
+
     public function index(Request $request): View
     {
         $categories = Project::categoriesWithHistorical();
@@ -111,36 +116,54 @@ class ProjectController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        /** @var User $actor */
+        $actor = $request->user();
+
         $validated = $this->validateProject($request);
         $assigneeUserIds = $validated['assignee_user_ids'] ?? [];
         unset($validated['assignee_user_ids']);
 
         $project = Project::create($validated);
         $this->syncProjectAssignments($project, $assigneeUserIds);
+        $project->refresh();
+        $this->projectNotifications->projectCreated($project, $actor);
 
         return redirect()->route('projects.index')->with('status', 'Project created.');
     }
 
     public function update(Request $request, Project $project): RedirectResponse
     {
+        /** @var User $actor */
+        $actor = $request->user();
+
         $validated = $this->validateProject($request, $project);
         $assigneeUserIds = $validated['assignee_user_ids'] ?? [];
         unset($validated['assignee_user_ids']);
 
         $project->update($validated);
         $this->syncProjectAssignments($project, $assigneeUserIds);
+        $project->refresh();
+        $this->projectNotifications->projectUpdated($project, $actor);
 
         return redirect()->route('projects.show', $project)->with('status', 'Project updated.');
     }
 
-    public function destroy(Project $project): RedirectResponse
+    public function destroy(Request $request, Project $project): RedirectResponse
     {
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $this->projectNotifications->projectDeleted($project, $actor);
         $project->delete();
+
         return redirect()->route('projects.index')->with('status', 'Project deleted.');
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
     {
+        /** @var User $actor */
+        $actor = $request->user();
+
         $validated = $request->validate([
             'selected_ids' => ['required', 'array', 'min:1'],
             'selected_ids.*' => ['integer', 'distinct', 'exists:projects,id'],
@@ -151,6 +174,7 @@ class ProjectController extends Controller
             ->get();
 
         foreach ($projects as $project) {
+            $this->projectNotifications->projectDeleted($project, $actor);
             $project->delete();
         }
 

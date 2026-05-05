@@ -39,12 +39,4 @@ return [
         'group_link' => env('VIBER_GROUP_LINK'),
     ],
 
-    'emailjs' => [
-        'endpoint' => env('EMAILJS_ENDPOINT', 'https://api.emailjs.com/api/v1.0/email/send'),
-        'service_id' => env('EMAILJS_SERVICE_ID'),
-        'template_id' => env('EMAILJS_TEMPLATE_ID'),
-        'public_key' => env('EMAILJS_PUBLIC_KEY'),
-        'private_key' => env('EMAILJS_PRIVATE_KEY'),
-    ],
-
 ];

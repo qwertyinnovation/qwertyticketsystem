@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\ServiceTicket;
 use App\Models\User;
-use App\Notifications\Channels\EmailJsChannel;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class ServiceTicketChangedNotification extends Notification
@@ -76,97 +77,43 @@ class ServiceTicketChangedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return [EmailJsChannel::class];
+        return ['mail'];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function toEmailJs(object $notifiable): array
+    public function toMail(object $notifiable): MailMessage
     {
-        $toEmail = $notifiable instanceof User ? trim((string) $notifiable->email) : '';
-        $actionUrl = $this->ticketUrl($notifiable);
-
-        if ($toEmail === '') {
-            throw new \RuntimeException('Recipient email is missing.');
-        }
-
-        return [
-            'to_email' => $toEmail,
-            'from_email' => (string) config('mail.from.address', ''),
-            'from_name' => (string) config('mail.from.name', ''),
-            'subject' => $this->subjectLine(),
-            'message' => $this->messageBody($actionUrl),
-            'ticket_id' => (string) $this->ticket['id'],
-            'ticket_title' => $this->ticket['title'],
-            'project_name' => $this->ticket['project_name'],
-            'status' => $this->ticket['status'],
-            'requester_role' => $this->ticket['requester_role_label'],
-            'submitted_by' => $this->ticket['submitted_by_name'],
-            'change_type' => $this->changeType,
-            'action_url' => $actionUrl,
-            'changed_by' => $this->actorName ?? '',
-        ];
-    }
-
-    public function changeType(): string
-    {
-        return $this->changeType;
-    }
-
-    public function ticketId(): int
-    {
-        return $this->ticket['id'];
-    }
-
-    private function subjectLine(): string
-    {
-        return match ($this->changeType) {
-            self::TYPE_CREATED => 'New service ticket #'.$this->ticket['id'].': '.$this->ticket['title'],
-            self::TYPE_RESPONDED => 'Service ticket #'.$this->ticket['id'].' updated: '.$this->ticket['title'],
-            self::TYPE_DELETED => 'Service ticket #'.$this->ticket['id'].' deleted: '.$this->ticket['title'],
-            default => 'Service ticket #'.$this->ticket['id'].' changed: '.$this->ticket['title'],
-        };
-    }
-
-    private function summaryLine(): string
-    {
-        return match ($this->changeType) {
-            self::TYPE_CREATED => 'A new service ticket was submitted.',
-            self::TYPE_RESPONDED => 'A response was added to a service ticket.',
-            self::TYPE_DELETED => 'A service ticket was deleted.',
-            default => 'A service ticket was changed.',
-        };
-    }
-
-    private function messageBody(string $actionUrl): string
-    {
-        $lines = [
-            $this->summaryLine(),
-            'Project: '.$this->ticket['project_name'],
-            'Requester: '.$this->ticket['requester_role_label'].' ('.$this->ticket['submitted_by_name'].')',
-            'Status: '.$this->ticket['status'],
-        ];
+        $mail = (new MailMessage)
+            ->subject($this->subjectLine())
+            ->line(new HtmlString('<p style="margin:0 0 12px;"><img src="'.$this->logoUrl().'" alt="Qwerty Innovation" style="max-width:150px;height:auto;" /></p>'))
+            ->greeting('Dear Team,')
+            ->line($this->summaryLine())
+            ->line('Ticket ID: #'.$this->ticket['id'])
+            ->line('Title: '.$this->ticket['title'])
+            ->line('Project: '.$this->ticket['project_name'])
+            ->line('Requester: '.$this->ticket['requester_role_label'].' ('.$this->ticket['submitted_by_name'].')')
+            ->line('Current Status: '.$this->ticket['status']);
 
         if ($this->actorName !== null && trim($this->actorName) !== '') {
-            $lines[] = 'Changed by: '.$this->actorName;
+            $mail->line('Updated By: '.$this->actorName);
         }
 
         if ($this->statusChanged()) {
-            $lines[] = 'Status changed: '.$this->previousStatus.' -> '.$this->newStatus;
+            $mail->line('Status Change: '.$this->previousStatus.' -> '.$this->newStatus);
         }
 
         if ($this->message !== null && trim($this->message) !== '') {
-            $lines[] = 'Message: '.Str::limit(trim($this->message), 500);
+            $mail->line('Latest Update: '.Str::limit(trim($this->message), 500));
         }
 
         if ($this->changeType === self::TYPE_DELETED) {
-            $lines[] = 'This ticket has been removed from the system.';
-        } else {
-            $lines[] = 'Open Ticket: '.$actionUrl;
+            return $mail
+                ->line('This service ticket has been removed from the system.')
+                ->salutation('Regards, Qwerty Service Team');
         }
 
-        return implode("\n", $lines);
+        return $mail
+            ->action('Open Ticket', $this->ticketUrl($notifiable))
+            ->salutation('Regards, Qwerty Service Team');
     }
 
     private function ticketUrl(object $notifiable): string
@@ -194,5 +141,46 @@ class ServiceTicketChangedNotification extends Notification
         $value = is_string($value) ? trim($value) : '';
 
         return $value !== '' ? $value : $fallback;
+    }
+
+    private function logoUrl(): string
+    {
+        $configuredLogo = trim((string) env('MAIL_LOGO_URL', ''));
+
+        if ($configuredLogo !== '') {
+            return $configuredLogo;
+        }
+
+        return rtrim((string) config('app.url', ''), '/').'/images/qwerty-logo.png';
+    }
+
+    public function changeType(): string
+    {
+        return $this->changeType;
+    }
+
+    public function ticketId(): int
+    {
+        return $this->ticket['id'];
+    }
+
+    private function subjectLine(): string
+    {
+        return match ($this->changeType) {
+            self::TYPE_CREATED => 'Service Ticket #'.$this->ticket['id'].' Created - '.$this->ticket['title'],
+            self::TYPE_RESPONDED => 'Service Ticket #'.$this->ticket['id'].' Updated - '.$this->ticket['title'],
+            self::TYPE_DELETED => 'Service Ticket #'.$this->ticket['id'].' Deleted - '.$this->ticket['title'],
+            default => 'Service Ticket #'.$this->ticket['id'].' Updated - '.$this->ticket['title'],
+        };
+    }
+
+    private function summaryLine(): string
+    {
+        return match ($this->changeType) {
+            self::TYPE_CREATED => 'A new service ticket has been submitted and requires attention.',
+            self::TYPE_RESPONDED => 'A new response has been added to this service ticket.',
+            self::TYPE_DELETED => 'This service ticket has been deleted.',
+            default => 'This service ticket has been updated.',
+        };
     }
 }
