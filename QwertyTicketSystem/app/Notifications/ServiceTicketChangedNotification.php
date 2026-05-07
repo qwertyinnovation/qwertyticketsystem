@@ -90,7 +90,7 @@ class ServiceTicketChangedNotification extends Notification
             ->line('Ticket ID: #'.$this->ticket['id'])
             ->line('Title: '.$this->ticket['title'])
             ->line('Project: '.$this->ticket['project_name'])
-            ->line('Requester: '.$this->ticket['requester_role_label'].' ('.$this->ticket['submitted_by_name'].')')
+            ->line('Requester: '.$this->requesterDisplay())
             ->line('Current Status: '.$this->ticket['status']);
 
         if ($this->actorName !== null && trim($this->actorName) !== '') {
@@ -141,6 +141,18 @@ class ServiceTicketChangedNotification extends Notification
         $value = is_string($value) ? trim($value) : '';
 
         return $value !== '' ? $value : $fallback;
+    }
+
+    private function requesterDisplay(): string
+    {
+        $roleLabel = trim((string) $this->ticket['requester_role_label']);
+        $submittedByName = trim((string) $this->ticket['submitted_by_name']);
+
+        if ($submittedByName === '' || $submittedByName === 'Public submission') {
+            return $roleLabel;
+        }
+
+        return $roleLabel.' #'.$submittedByName;
     }
 
     private function logoUrl(): string
