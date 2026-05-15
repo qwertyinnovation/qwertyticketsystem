@@ -129,9 +129,21 @@
 
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <span class="text-xs font-bold uppercase tracking-[0.06em] text-slate-500" data-bulk-selected-count>0 selected</span>
-                        <button type="submit" class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50" data-bulk-submit disabled>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="submit"
+                                formaction="{{ route('service-tickets.bulk-clear-photos') }}"
+                                class="btn rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                data-bulk-submit
+                                data-bulk-confirm="Clear uploaded photos for selected tickets? Ticket and response history will remain, but all attached files/images will be removed."
+                                disabled
+                            >
+                                Clear Photo
+                            </button>
+                            <button type="submit" class="btn rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-50" data-bulk-submit disabled>
                             Delete Selected
-                        </button>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto rounded-xl border border-slate-200">

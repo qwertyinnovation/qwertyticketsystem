@@ -111,6 +111,8 @@ Route::middleware('auth')->group(function (): void {
             Route::delete('/public-links/bulk', [ServiceTicketController::class, 'bulkDestroyPublicLinks'])
                 ->middleware('permission:'.User::PERMISSION_GENERATE_LINKS)
                 ->name('service-tickets.public-links.bulk-destroy');
+            Route::delete('/bulk/clear-photos', [ServiceTicketController::class, 'bulkClearPhotos'])
+                ->name('service-tickets.bulk-clear-photos');
             Route::delete('/bulk', [ServiceTicketController::class, 'bulkDestroy'])->name('service-tickets.bulk-destroy');
             Route::get('/{serviceTicket}', [ServiceTicketController::class, 'show'])->name('service-tickets.show');
             Route::put('/{serviceTicket}/response', [ServiceTicketController::class, 'updateResponse'])->name('service-tickets.response.update');

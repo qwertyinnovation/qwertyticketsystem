@@ -503,18 +503,107 @@ class ServiceTicketController extends Controller
         return back()->with('status', $deletedCount.' '.Str::plural('service ticket', $deletedCount).' deleted.');
     }
 
+    public function bulkClearPhotos(Request $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'selected_ids' => ['required', 'array', 'min:1'],
+            'selected_ids.*' => ['integer', 'distinct', 'exists:service_tickets,id'],
+        ]);
+
+        $tickets = ServiceTicket::query()
+            ->whereIn('id', array_map('intval', $validated['selected_ids']))
+            ->with('photos')
+            ->get();
+
+        foreach ($tickets as $ticket) {
+            $this->assertCanViewTicket($user, $ticket);
+
+            if (! $this->canManageAllTickets($user) && (int) $ticket->submitted_by_user_id !== (int) $user->id) {
+                abort(403);
+            }
+        }
+
+        foreach ($tickets as $ticket) {
+            $this->clearTicketPhotos($ticket);
+        }
+
+        $updatedCount = $tickets->count();
+
+        return back()->with('status', 'Photos cleared from '.$updatedCount.' '.Str::plural('service ticket', $updatedCount).'.');
+    }
+
     private function deleteServiceTicketWithFiles(ServiceTicket $serviceTicket): void
     {
         $serviceTicket->loadMissing(['photos', 'responses']);
 
-        $photoPaths = $serviceTicket->photos
-            ->pluck('photo_path')
+        $responseAttachmentPaths = $serviceTicket->responses
+            ->pluck('attachment_path')
             ->filter()
             ->values()
             ->all();
 
+        $pathsToDelete = $this->ticketPhotoPaths($serviceTicket);
+
+        if ($serviceTicket->response_photo_path) {
+            $responseAttachmentPaths[] = $serviceTicket->response_photo_path;
+        }
+
+        foreach ($responseAttachmentPaths as $attachmentPath) {
+            $pathsToDelete[] = $attachmentPath;
+        }
+
+        Storage::disk('public')->delete(array_values(array_unique($pathsToDelete)));
+
+        $serviceTicket->delete();
+    }
+
+    private function clearTicketPhotos(ServiceTicket $serviceTicket): void
+    {
+        $serviceTicket->loadMissing(['photos', 'responses']);
+
+        $pathsToDelete = $this->ticketPhotoPaths($serviceTicket);
         $responseAttachmentPaths = $serviceTicket->responses
             ->pluck('attachment_path')
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($serviceTicket->response_photo_path) {
+            $responseAttachmentPaths[] = $serviceTicket->response_photo_path;
+        }
+
+        foreach ($responseAttachmentPaths as $attachmentPath) {
+            $pathsToDelete[] = $attachmentPath;
+        }
+
+        $pathsToDelete = array_values(array_unique($pathsToDelete));
+
+        if ($pathsToDelete !== []) {
+            Storage::disk('public')->delete($pathsToDelete);
+        }
+
+        $serviceTicket->photos()->delete();
+        $serviceTicket->responses()->update([
+            'attachment_path' => null,
+            'attachment_original_name' => null,
+            'attachment_mime_type' => null,
+        ]);
+
+        $serviceTicket->screenshot_path = null;
+        $serviceTicket->response_photo_path = null;
+        $serviceTicket->save();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function ticketPhotoPaths(ServiceTicket $serviceTicket): array
+    {
+        $photoPaths = $serviceTicket->photos
+            ->pluck('photo_path')
             ->filter()
             ->values()
             ->all();
@@ -523,17 +612,7 @@ class ServiceTicketController extends Controller
             $photoPaths[] = $serviceTicket->screenshot_path;
         }
 
-        if ($serviceTicket->response_photo_path) {
-            $photoPaths[] = $serviceTicket->response_photo_path;
-        }
-
-        foreach ($responseAttachmentPaths as $attachmentPath) {
-            $photoPaths[] = $attachmentPath;
-        }
-
-        Storage::disk('public')->delete(array_values(array_unique($photoPaths)));
-
-        $serviceTicket->delete();
+        return array_values(array_unique($photoPaths));
     }
 
     /**

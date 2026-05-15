@@ -5,18 +5,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectAll = form.querySelector('[data-bulk-select-all]');
         const rowCheckboxes = Array.from(form.querySelectorAll('[data-bulk-select-row]'))
             .filter((checkbox) => checkbox instanceof HTMLInputElement);
-        const submitButton = form.querySelector('[data-bulk-submit]');
+        const submitButtons = Array.from(form.querySelectorAll('[data-bulk-submit]'))
+            .filter((button) => button instanceof HTMLButtonElement);
         const selectedCount = form.querySelector('[data-bulk-selected-count]');
-        const confirmMessage = form.getAttribute('data-bulk-confirm') || 'Delete selected records?';
 
         const enabledCheckboxes = rowCheckboxes.filter((checkbox) => !checkbox.disabled);
 
         const syncBulkState = () => {
             const checkedCount = enabledCheckboxes.filter((checkbox) => checkbox.checked).length;
 
-            if (submitButton instanceof HTMLButtonElement) {
-                submitButton.disabled = checkedCount === 0;
-            }
+            submitButtons.forEach((button) => {
+                button.disabled = checkedCount === 0;
+            });
 
             if (selectedCount instanceof HTMLElement) {
                 selectedCount.textContent = `${checkedCount} selected`;
@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         form.addEventListener('submit', (event) => {
             const checkedCount = enabledCheckboxes.filter((checkbox) => checkbox.checked).length;
+            const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+            const confirmMessage = submitter?.getAttribute('data-bulk-confirm')
+                || form.getAttribute('data-bulk-confirm')
+                || 'Delete selected records?';
 
             if (checkedCount === 0 || !window.confirm(confirmMessage)) {
                 event.preventDefault();
