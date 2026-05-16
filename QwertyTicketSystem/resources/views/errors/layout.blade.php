@@ -6,11 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ $title ?? 'Error' }} | Qwerty Ticket System</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/qwerty-logo.svg') }}" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-        rel="stylesheet" />
+    <link rel="preload" href="{{ asset('fonts/space-grotesk-latin-var.woff2') }}" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="{{ asset('fonts/jetbrains-mono-latin-var.woff2') }}" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="{{ asset('fonts/google-fonts.css') }}" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 

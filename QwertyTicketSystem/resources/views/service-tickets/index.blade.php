@@ -78,14 +78,50 @@
 
                         <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">
                             Status
-                            <select name="status" class="rounded-lg px-3 py-2 text-sm">
-                                <option value="">All</option>
-                                @foreach ($statuses as $status)
-                                    <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>
-                                        {{ $status }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <div class="relative" data-status-multi-select>
+                                <button
+                                    type="button"
+                                    class="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700"
+                                    data-status-trigger
+                                    aria-haspopup="listbox"
+                                    aria-expanded="false"
+                                >
+                                    <span data-status-label>All</span>
+                                    <svg class="h-4 w-4 text-slate-500 transition-transform duration-150" data-status-icon viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+
+                                <div
+                                    class="absolute z-30 mt-1 hidden w-full rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
+                                    data-status-menu
+                                    role="listbox"
+                                    aria-multiselectable="true"
+                                >
+                                    <button
+                                        type="button"
+                                        class="mb-1 w-full rounded-md bg-slate-100 px-2 py-1.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-200"
+                                        data-status-clear
+                                    >
+                                        All
+                                    </button>
+                                    <div class="max-h-44 space-y-1 overflow-y-auto pr-1" data-status-option-list>
+                                        @foreach ($statuses as $status)
+                                            <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50" data-status-option>
+                                                <input
+                                                    type="checkbox"
+                                                    name="status[]"
+                                                    value="{{ $status }}"
+                                                    class="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                                                    data-status-checkbox
+                                                    @checked(in_array($status, $filters['statuses'] ?? [], true))
+                                                />
+                                                <span>{{ $status }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
                         </label>
 
                         <label class="grid min-w-0 gap-1 text-xs font-semibold md:col-span-3">

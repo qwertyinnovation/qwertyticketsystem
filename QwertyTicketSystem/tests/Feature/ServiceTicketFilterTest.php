@@ -64,6 +64,44 @@ class ServiceTicketFilterTest extends TestCase
             ->assertDontSeeText('Hospital Latest Outside Range');
     }
 
+    public function test_service_ticket_index_filters_by_multiple_statuses_and_supports_legacy_single_status_query(): void
+    {
+        $adminUser = $this->userWithRole(User::ROLE_ADMIN);
+        $requester = $this->userWithRole(User::ROLE_CLIENT);
+        $project = $this->createProject('Operations Portal', 'Operations');
+
+        $newTicket = $this->createTicket($project, $requester, 'Status New Ticket', '2026-05-01 09:00:00', 'New');
+        $inProgressTicket = $this->createTicket($project, $requester, 'Status In Progress Ticket', '2026-05-01 10:00:00', 'In Progress');
+        $closedTicket = $this->createTicket($project, $requester, 'Status Closed Ticket', '2026-05-01 11:00:00', 'Closed');
+
+        $this->actingAs($adminUser)
+            ->get(route('service-tickets.index', [
+                'status' => ['New', 'In Progress'],
+            ]))
+            ->assertOk()
+            ->assertSeeText($newTicket->title)
+            ->assertSeeText($inProgressTicket->title)
+            ->assertDontSeeText($closedTicket->title);
+
+        $this->actingAs($adminUser)
+            ->get(route('service-tickets.index', [
+                'status' => ['Closed', 'Not A Real Status'],
+            ]))
+            ->assertOk()
+            ->assertSeeText($closedTicket->title)
+            ->assertDontSeeText($newTicket->title)
+            ->assertDontSeeText($inProgressTicket->title);
+
+        $this->actingAs($adminUser)
+            ->get(route('service-tickets.index', [
+                'status' => 'In Progress',
+            ]))
+            ->assertOk()
+            ->assertSeeText($inProgressTicket->title)
+            ->assertDontSeeText($newTicket->title)
+            ->assertDontSeeText($closedTicket->title);
+    }
+
     private function createProject(string $name, string $serviceType): Project
     {
         return Project::query()->create([
@@ -76,7 +114,13 @@ class ServiceTicketFilterTest extends TestCase
         ]);
     }
 
-    private function createTicket(Project $project, User $submittedBy, string $title, string $createdAt): ServiceTicket
+    private function createTicket(
+        Project $project,
+        User $submittedBy,
+        string $title,
+        string $createdAt,
+        ?string $status = null
+    ): ServiceTicket
     {
         $ticket = ServiceTicket::query()->create([
             'project_id' => $project->id,
@@ -84,7 +128,7 @@ class ServiceTicketFilterTest extends TestCase
             'submitted_by_user_id' => $submittedBy->id,
             'title' => $title,
             'description' => $title.' description',
-            'status' => ServiceTicket::statuses()[0],
+            'status' => $status ?? ServiceTicket::statuses()[0],
         ]);
 
         $ticket->forceFill([

@@ -54,6 +54,7 @@ class ServiceTicketController extends Controller
             ->all();
         $requesterRoles = ServiceTicket::requesterRoles();
         $statuses = ServiceTicket::statuses();
+        $selectedStatuses = $this->normalizeStatusFilters($request, $statuses);
 
         $rawProjectId = $request->query('project_id');
         $projectId = is_numeric($rawProjectId) ? (int) $rawProjectId : null;
@@ -71,7 +72,7 @@ class ServiceTicketController extends Controller
             'project_id' => $projectId !== null ? $projectId : null,
             'service_type' => trim((string) $request->query('service_type', '')),
             'requester_role' => (string) $request->query('requester_role', ''),
-            'status' => (string) $request->query('status', ''),
+            'statuses' => $selectedStatuses,
             'created_date_from' => $createdDateFrom,
             'created_date_to' => $createdDateTo,
             'response_date_from' => $responseDateFrom,
@@ -121,8 +122,8 @@ class ServiceTicketController extends Controller
             $ticketsQuery->where('requester_role', $filters['requester_role']);
         }
 
-        if ($filters['status'] !== '' && in_array($filters['status'], $statuses, true)) {
-            $ticketsQuery->where('status', $filters['status']);
+        if ($filters['statuses'] !== []) {
+            $ticketsQuery->whereIn('status', $filters['statuses']);
         }
 
         if ($filters['created_date_from'] !== '') {
@@ -156,6 +157,51 @@ class ServiceTicketController extends Controller
             'canManageAllTickets' => $canManageAll,
             'canGeneratePublicLink' => $canGeneratePublicLink,
         ]);
+    }
+
+    /**
+     * @param array<int, string> $allowedStatuses
+     * @return array<int, string>
+     */
+    private function normalizeStatusFilters(Request $request, array $allowedStatuses): array
+    {
+        $rawStatusFilter = $request->query('status');
+        $requestedStatuses = [];
+
+        if (is_array($rawStatusFilter)) {
+            foreach ($rawStatusFilter as $statusValue) {
+                if (! is_string($statusValue)) {
+                    continue;
+                }
+
+                $trimmedValue = trim($statusValue);
+
+                if ($trimmedValue !== '') {
+                    $requestedStatuses[] = $trimmedValue;
+                }
+            }
+        } elseif (is_string($rawStatusFilter)) {
+            $trimmedValue = trim($rawStatusFilter);
+
+            if ($trimmedValue !== '') {
+                $requestedStatuses[] = $trimmedValue;
+            }
+        }
+
+        if ($requestedStatuses === []) {
+            return [];
+        }
+
+        $requestedStatusLookup = array_fill_keys(array_values(array_unique($requestedStatuses)), true);
+        $normalizedStatuses = [];
+
+        foreach ($allowedStatuses as $allowedStatus) {
+            if (isset($requestedStatusLookup[$allowedStatus])) {
+                $normalizedStatuses[] = $allowedStatus;
+            }
+        }
+
+        return $normalizedStatuses;
     }
 
     public function publicLinks(Request $request): View
